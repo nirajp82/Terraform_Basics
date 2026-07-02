@@ -1,0 +1,86 @@
+# Introduction to Terraform: High-Level Overview
+
+This document provides a foundational overview of Terraform, focusing on its core features, architecture, and operational phases as an Infrastructure as Code (IaC) tool.
+
+---
+
+## What is Terraform?
+
+Terraform is a widely used, open-source Infrastructure as Code (IaC) tool developed by **HashiCorp**, designed primarily for **infrastructure provisioning**.
+
+* **Installation:** Distributed as a single compiled binary, making setup extremely fast.
+* **Speed:** Enables the building, managing, and destroying of infrastructure in minutes.
+* **Platform Agnostic:** Capable of deploying infrastructure across a vast array of platforms, including public clouds (AWS, GCP, Azure) and on-premise private clouds (VMware vSphere).
+
+---
+
+## How Terraform Works
+
+### 1. Providers
+
+Terraform's ability to manage diverse infrastructure across hundreds of platforms is driven by **Providers**. A provider is a plugin that allows Terraform to interact with third-party platforms via their native APIs.
+
+Supported platforms include, but are not limited to:
+
+* **Cloud Platforms:** AWS, Azure, Google Cloud Platform (GCP).
+* **Network Infrastructure:** BigIP, CloudFlare, Palo Alto Networks, Infoblox, DNS.
+* **Monitoring & Data Management:** DataDog, Grafana, Wavefront, Sumo Logic.
+* **Databases:** MongoDB, MySQL, PostgreSQL, InfluxDB.
+* **Version Control Systems (VCS):** GitHub, GitLab, Bitbucket.
+
+### 2. HashiCorp Configuration Language (HCL)
+
+Terraform uses its own simple, human-readable language called **HCL** to define infrastructure as blocks of code.
+
+* **File Extension:** All configuration files end in `.tf`.
+* **Version Control:** HCL code can be easily stored, maintained, and distributed via version control systems (like Git).
+
+### 3. Declarative Approach
+
+HCL is a **declarative** language. This means you write code to define the **desired state** (what you want the infrastructure to look like). Terraform compares this desired state against the **current state** (what actually exists right now) and automatically determines the exact steps needed to bridge the gap. You do not have to write procedural code detailing *how* to build it.
+
+---
+
+## The Terraform Workflow: Three Core Phases
+
+Terraform executes its declarative logic through a standard three-phase lifecycle:
+
+1. **Init (`terraform init`):** Initializes the working directory containing your `.tf` files and downloads the necessary Provider plugins for the target environment.
+2. **Plan (`terraform plan`):** Evaluates the current state versus the desired state and drafts an execution plan outlining exactly what will be created, modified, or destroyed.
+3. **Apply (`terraform apply`):** Executes the plan, making the necessary API calls to the target environment to build or update the infrastructure to match the desired state.
+* *Note on Drift:* If someone manually changes a server (causing "configuration drift"), running a subsequent `apply` will detect the missing components and automatically fix the environment to match the code.
+
+
+
+---
+
+## Core Terraform Concepts
+
+* **Resources:** The fundamental unit in Terraform. Every object managed by Terraform (e.g., a compute instance, a database, a virtual network, a physical server) is considered a "resource". Terraform handles the entire lifecycle of a resource from provisioning to configuration to decommissioning.
+* **State:** Terraform maintains a blueprint of the infrastructure as it exists in the real world, usually stored in a `.tfstate` file. It relies on this state file to determine what actions to take during an update.
+* **Data Sources:** Allows Terraform to fetch read-only attributes from existing infrastructure components. This data can then be used to dynamically configure other resources in your code.
+* **Import:** Terraform can adopt existing resources that were created manually or by other tools, bringing them under Terraform's state management going forward.
+
+## Enterprise Offerings
+
+While Terraform open-source is highly capable, HashiCorp offers **Terraform Cloud** and **Terraform Enterprise**. These provide advanced features for organizations, such as centralized state management, simplified team collaboration, enhanced security controls, and a centralized UI for managing deployments.
+
+---
+
+### Topic Summary: Intro to Terraform
+
+Terraform is HashiCorp's open-source, vendor-agnostic infrastructure provisioning tool. It uses a declarative language (HCL) where you define the *desired state* of your infrastructure in `.tf` files. Through the use of API plugins called **Providers**, Terraform can manage everything from cloud VMs (AWS, Azure) to databases and network rules. The standard operational workflow consists of three steps: **Init** (setup), **Plan** (preview changes), and **Apply** (execute changes). Terraform tracks the real-world configuration via a **State** file, ensuring it always knows how to update resources or fix configuration drift.
+
+### Knowledge Check Q&A
+
+**Q: How is Terraform able to communicate with so many different cloud providers and services?**
+**A:** Terraform uses plugins called **Providers**. Providers translate Terraform's HCL code into API calls specific to that third-party platform (like AWS or DataDog).
+
+**Q: What does it mean that Terraform's HCL is a "declarative" language?**
+**A:** It means you only need to define the end-goal or "desired state" of the infrastructure (e.g., "I want 3 web servers"). You do not need to write the step-by-step instructions on how to create them; Terraform figures out the execution path for you.
+
+**Q: What happens if an administrator manually deletes a database that Terraform was managing, and then you run `terraform apply`?**
+**A:** Terraform will check its **State** file, see that the database is supposed to exist (desired state) but is missing in the real world (current state), and it will automatically recreate the database to fix the configuration drift.
+
+**Q: What are Data Sources used for in Terraform?**
+**A:** Data sources are used to read or fetch attributes from infrastructure that already exists (even if it isn't managed by Terraform) so that you can reference those attributes when building new resources.
