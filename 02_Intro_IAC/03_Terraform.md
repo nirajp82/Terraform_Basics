@@ -46,14 +46,13 @@ HCL is a **declarative** language. This means you write code to define the **des
 
 ## The Terraform Workflow: Three Core Phases
 
-Terraform executes its declarative logic through a standard three-phase lifecycle:
+Terraform executes its declarative logic through a standard three-phase lifecycle to safely move, configure, and manage identity objects:
 
-1. **Init (`terraform init`):** Initializes the working directory containing your `.tf` files and downloads the necessary Provider plugins for the target environment.
-2. **Plan (`terraform plan`):** Evaluates the current state versus the desired state and drafts an execution plan outlining exactly what will be created, modified, or destroyed.
-3. **Apply (`terraform apply`):** Executes the plan, making the necessary API calls to the target environment to build or update the infrastructure to match the desired state.
-* *Note on Drift:* If someone manually changes a server (causing "configuration drift"), running a subsequent `apply` will detect the missing components and automatically fix the environment to match the code.
+* **Init (`terraform init`):** Initializes the working directory containing your configuration files (`.tf`). During an identity migration, this command detects your source or target IdP configurations and downloads the specific Provider plugins (such as the Okta or CyberArk providers) required to communicate with those respective identity APIs.
+* **Plan (`terraform plan`):** Evaluates the current state of your target IdP versus the desired state defined in your code. For a migration, it drafts an execution plan outlining exactly which user accounts will be provisioned, which security groups or roles will be created, and which access policies will be updated.
+* **Apply (`terraform apply`):** Executes the generated plan. Terraform makes high-speed, secure API calls to your target IdP to physically build the users, assign them to their respective roles, and configure their application access to perfectly match your migration code.
 
-
+> **Note on Drift:** Identity environments are dynamic. If an administrator manually changes a user's role assignment or updates an application policy directly inside the IdP admin dashboard (causing "configuration drift"), running a subsequent `terraform apply` will automatically detect that unauthorized change. Terraform will then fire the necessary API commands to fix the environment, ensuring the target IdP immediately matches your master migration code.
 
 ---
 
