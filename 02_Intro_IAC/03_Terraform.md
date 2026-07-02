@@ -59,10 +59,19 @@ Terraform executes its declarative logic through a standard three-phase lifecycl
 ## Core Terraform Concepts
 
 * **Resources:** The fundamental unit in Terraform. Every object managed by Terraform (e.g., a compute instance, a database, a virtual network, a physical server) is considered a "resource". Terraform handles the entire lifecycle of a resource from provisioning to configuration to decommissioning.
-* **State:** Terraform maintains a blueprint of the infrastructure as it exists in the real world, usually stored in a `.tfstate` file. It relies on this state file to determine what actions to take during an update.
-* **Data Sources:** Allows Terraform to fetch read-only attributes from existing infrastructure components. This data can then be used to dynamically configure other resources in your code.
-* **Import:** Terraform can adopt existing resources that were created manually or by other tools, bringing them under Terraform's state management going forward.
+* **For your migration:** An Okta user, a CyberArk security group, or an SSO application are all just "resources" to Terraform.
 
+
+* **State:** Terraform maintains a blueprint of the resources as they exist in the real world, usually stored in a `.tfstate` file. It relies on this state file to determine what actions to take during an update.
+* **For your migration:** This file maps a user or app in your code to its actual API ID inside CyberArk, ensuring Terraform never creates a duplicate by mistake.
+
+
+* **Data Sources:** Allows Terraform to fetch read-only attributes from existing infrastructure components. This data can then be used to dynamically configure other resources in your code.
+* **For your migration:** If CyberArk already has a default global security policy that you didn't create, you use a Data Source to "read" its ID so you can attach your new applications to it.
+
+
+* **Import:** Terraform can adopt existing resources that were created manually or by other tools, bringing them under Terraform's state management going forward.
+* **For your migration:** If you have 500 applications that were built manually in Okta over the last five years, you use `import` to pull them into your Terraform code without having to delete and recreate them.
 ## Enterprise Offerings
 
 While Terraform open-source is highly capable, HashiCorp offers **Terraform Cloud** and **Terraform Enterprise**. These provide advanced features for organizations, such as centralized state management, simplified team collaboration, enhanced security controls, and a centralized UI for managing deployments.
