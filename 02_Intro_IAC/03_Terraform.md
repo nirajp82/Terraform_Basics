@@ -38,11 +38,16 @@ Some common providers are:
 Terraform uses its own simple, human-readable language called **HCL** to define infrastructure as blocks of code.
 
 * **File Extension:** All configuration files end in `.tf`.
+
+<img width="490" height="471" alt="image" src="https://github.com/user-attachments/assets/fb9f2588-c364-4512-9beb-dfc0049aaadb" />
+
 * **Version Control:** HCL code can be easily stored, maintained, and distributed via version control systems (like Git).
 
 ### 3. Declarative Approach
 
 HCL is a **declarative** language. This means you write code to define the **desired state** (what you want the infrastructure to look like). Terraform compares this desired state against the **current state** (what actually exists right now) and automatically determines the exact steps needed to bridge the gap. You do not have to write procedural code detailing *how* to build it.
+
+<img width="1103" height="479" alt="image" src="https://github.com/user-attachments/assets/af23e4ac-579d-45fd-a183-d36c86279cf8" />
 
 ---
 
