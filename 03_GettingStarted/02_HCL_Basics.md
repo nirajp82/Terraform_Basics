@@ -34,7 +34,7 @@ Breaking down this code line-by-line:
 | ------------------ | ------------------ | --------------- | ------------------------------------------------------------------------------------------------- |
 | `resource`         | **Block Type**     | Terraform       | ❌ No. Must be one of Terraform's block types (`resource`, `variable`, `output`, `provider`, etc.) |
 | `"local_file"`     | **Resource Type**  | Provider        | ❌ No. Must be a valid resource type provided by the installed provider.                           |
-| `"pet"`            | **Resource Name**  | You             | ✅ Yes. Any meaningful name (e.g., `pet`, `notes`, `my_file`).                                     |
+| `"pet"`            | **Resource Name**  | You             | ✅ Yes. Any meaningful name (e.g., `pet`, `notes`, `my_file`).   A user-defined logical name that helps Terraform identify this specific resource within your configuration and allows you to reference it elsewhere in your Terraform code.                                  |
 | `filename`         | **Argument Name**  | Provider        | ❌ No. Must be a supported argument for `local_file`.                                              |
 | `"/root/pets.txt"` | **Argument Value** | You             | ✅ Yes. Any valid file path.                                                                       |
 | `content`          | **Argument Name**  | Provider        | ❌ No. Must be a supported argument for `local_file`.                                              |
