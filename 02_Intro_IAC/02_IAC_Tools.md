@@ -56,3 +56,26 @@ The IaC ecosystem can be broadly categorized into three distinct types, each des
 | **Infrastructure Provisioning** | Creating hardware/cloud resources | Declarative bootstrapping | Terraform, CloudFormation |
 | **Configuration Management** | Managing software on existing systems | Mutable & Idempotent updates | Ansible, Puppet, Chef, SaltStack |
 | **Server Templating** | Creating golden images/containers | Immutable replacement | Docker, Packer, Vagrant |
+
+
+---
+
+### Topic Summary: Intro to IaC
+
+Infrastructure as Code (IaC) replaces manual, error-prone cloud console clicking with readable, reusable code to manage infrastructure. The IaC landscape is divided into three main categories:
+
+1. **Configuration Management** (e.g., Ansible) for maintaining and updating software on existing servers idempotently.
+2. **Server Templating** (e.g., Packer, Docker) for creating immutable, pre-baked images that replace existing instances rather than updating them.
+3. **Infrastructure Provisioning** (e.g., Terraform) for declaratively deploying the foundational cloud resources (VPCs, VMs, etc.) from scratch.
+
+### Knowledge Check Q&A
+
+**Q: Why is idempotency important in Configuration Management tools like Ansible?**
+**A:** Idempotency ensures that no matter how many times you run the code, the system will only make the necessary changes to reach the desired state. If the server is already configured correctly, it will leave it exactly as is, preventing unintended modifications.
+
+**Q: How does Server Templating promote "immutable infrastructure"?**
+**A:** Instead of logging into a running server to install an update or patch, server templating requires you to update the base image itself. You then deploy a brand-new instance from that new image and destroy the old one, ensuring the running server is never modified in place.
+
+**Q: What is the primary difference between Terraform and AWS CloudFormation?**
+**A:** While both are infrastructure provisioning tools, CloudFormation is proprietary and locked to the AWS ecosystem. Terraform is vendor-agnostic and uses provider plugins to provision resources across almost any major cloud provider (AWS, Azure, GCP, etc.).
+
