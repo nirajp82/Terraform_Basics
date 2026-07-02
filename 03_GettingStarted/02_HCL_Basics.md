@@ -19,12 +19,6 @@ Consider a basic example of managing a file on your local operating system (`loc
 
 <img width="640" height="206" alt="image" src="https://github.com/user-attachments/assets/70dd6b42-d92e-4011-a658-b65678628885" />
 
-```hcl
-resource "aws_instance" "webserver" {
-  ami           = "ami-0c2f25c1f66a1ff4d"
-  instance_type = "t2.micro"
-}
-```
 
 ```hcl
 resource "local_file" "pet" {
@@ -93,6 +87,24 @@ local_file.pet
 local_file.notes
 ```
 
+#### Create EC2
+-  Creates an AWS EC2 virtual machine named webserver using the specified Amazon Machine Image (AMI) and launches it as a t2.micro instance.
+-  
+```hcl
+resource "aws_instance" "webserver" {
+  ami           = "ami-0c2f25c1f66a1ff4d"
+  instance_type = "t2.micro"
+}
+```
+
+- Creates an AWS S3 bucket named webserver-bucket-org-2207 and sets its access control list (ACL) to private, meaning only the bucket owner has access by default.
+
+```hcl
+resource "aws_s3_bucket" "data" {
+  bucket = "webserver-bucket-org-2207"
+  acl    = "private"
+}
+```
 
 ---
 
