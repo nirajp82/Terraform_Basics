@@ -72,6 +72,171 @@ Terraform executes its declarative logic through a standard three-phase lifecycl
 
 * **Import:** Terraform can adopt existing resources that were created manually or by other tools, bringing them under Terraform's state management going forward.
   * **For ex. in IDP migration:**: If you have 500 applications that were built manually in Okta over the last five years, you use `import` to pull them into your Terraform code without having to delete and recreate them.
+---
+
+# Example of Terraform Migration Guide: Okta → CyberArk
+
+This guide explains the core workflow of migrating users, groups, and applications from an existing Identity Provider (Okta) to a new Identity Provider (CyberArk) using Terraform.
+
+## 0. The Golden Rule of Migrations
+
+> **Terraform does not "manage Okta data" in this migration.**
+
+* **Okta:** The source system (used only to read/export raw data).
+* **CyberArk:** The target system (actively managed by Terraform).
+
+Therefore, Terraform resources are named based on the *target* system provider. We use `cyberark_user` and `cyberark_group`. We **do not** use `okta_user` to create things, because Terraform is actively controlling CyberArk, not Okta.
+
+## 1. Before Terraform Starts (Getting the Okta Data)
+
+Okta already contains your live data (Users: John, Sarah, Mike, Lisa | Group: Finance). To get this data out of Okta and ready for CyberArk, you generally use one of two methods:
+
+**Method A: The Custom Script Approach (File Generation)**
+You write a custom script (using C#, Node.js, or an Okta SDK) that connects to the Okta API, downloads the user list, and automatically writes the physical `.tf` text files containing the `cyberark_user` resource blocks.
+
+**Method B: The Okta Provider Approach (Terraform Data Sources)**
+You configure Terraform with *both* the Okta Provider and the CyberArk Provider. You use the Okta Provider purely as a **Read-Only Data Source** to fetch the users dynamically, and instantly pass that data into the CyberArk provider to create them.
+
+```hcl
+# 1. READ from Okta (Using Okta Provider)
+data "okta_user" "source_john" {
+  email = "john@company.com"
+}
+
+# 2. WRITE to CyberArk (Using CyberArk Provider)
+resource "cyberark_user" "target_john" {
+  username   = data.okta_user.source_john.login
+  first_name = data.okta_user.source_john.first_name
+}
+
+```
+
+## 2. Terraform Configuration (Desired State)
+
+This code tells Terraform what to build in CyberArk.
+
+**How many files do you need?** You (or your script) create these `.tf` files. You can choose to write everything into one single file (e.g., `main.tf`), or you can organize it into 5, 10, or 100 different files (e.g., `users.tf`, `groups.tf`, `apps.tf`). Terraform doesn't care—it automatically reads all `.tf` files in the folder and merges them together in its memory as one single configuration.
+
+**Example: `users.tf**`
+
+```hcl
+resource "cyberark_user" "john" { username = "John" }
+resource "cyberark_user" "sarah" { username = "Sarah" }
+resource "cyberark_user" "mike" { username = "Mike" }
+resource "cyberark_user" "lisa" { username = "Lisa" }
+resource "cyberark_group" "finance" { name = "Finance" }
+
+```
+
+### What is a Resource?
+
+A resource is an object Terraform creates and manages in the target system.
+
+| Terraform Resource | Real CyberArk Object |
+| --- | --- |
+| `cyberark_user.john` | User John |
+| `cyberark_user.sarah` | User Sarah |
+| `cyberark_group.finance` | Finance Group |
+
+## 3. Init (`terraform init`)
+
+When you run `terraform init`, Terraform reads your `.tf` files, downloads the required Provider plugins (like the CyberArk provider), and prepares API communication. At this stage, no users are read, and no changes are made.
+
+**What is a Provider?**
+A provider is the plugin that connects Terraform to a specific system's API. The CyberArk Provider knows how to securely `GET` and `POST` users and groups to the CyberArk API.
+
+## 4. Plan (`terraform plan`)
+
+Terraform compares what you *want* against what *actually exists*.
+
+* **Step 1: Reads the Desired State from your `.tf` code.** Terraform reads the `cyberark_` blocks you wrote to understand what you want CyberArk to look like. *(Note: It is NOT connecting to Okta here; it is only reading your local code).*
+* **Step 2: Reads the Actual State from CyberArk.** Terraform calls the CyberArk API (`GET /users`, `GET /groups`) to see what already exists in the target system.
+* **Step 3: Compares the two.**
+
+| Resource | In Your Code? | Already in CyberArk? | Action |
+| --- | --- | --- | --- |
+| John | Yes | Yes | No change |
+| Sarah | Yes | Yes | No change |
+| Mike | Yes | No | **Create** |
+| Lisa | Yes | No | **Create** |
+| Finance | Yes | No | **Create** |
+
+**Plan Output:**
+
+```diff
++ create cyberark_user.mike
++ create cyberark_user.lisa
++ create cyberark_group.finance
+
+```
+
+*(Note: Nothing is actually created yet.)*
+
+## 5. Apply (`terraform apply`)
+
+Terraform instructs the CyberArk provider to execute the changes. The provider calls the CyberArk API (`POST /users`, `POST /groups`). CyberArk now perfectly matches your Terraform configuration.
+
+## 6. State (Very Important)
+
+Terraform stores a state file locally (or remotely) called `terraform.tfstate`. It maps your written code to the real CyberArk database IDs.
+
+* `cyberark_user.john` → CyberArk ID: 101
+* `cyberark_group.finance` → CyberArk ID: 501
+
+Terraform uses this state to remember what already exists, avoid creating duplicates, and track changes later.
+
+## 7. Data Source (Read Only)
+
+**Why use this?** Sometimes CyberArk has built-in objects or required settings that *never existed in Okta*, but you still need to use them for your migration.
+
+For example, CyberArk might have a default "Global Authentication Policy" that was created automatically when you bought the software. You do not want Terraform to create a duplicate policy, but you *do* need to attach your migrating Okta users to it. Instead of creating it, Terraform uses a Data Source to simply look up its ID.
+
+```hcl
+data "cyberark_policy" "default_auth" {
+  name = "Global Authentication Policy"
+}
+
+```
+
+| Type | Meaning |
+| --- | --- |
+| **Resource** | Terraform creates and actively manages it. |
+| **Data Source** | Terraform only looks it up (read-only) to use its data elsewhere. |
+
+
+## 8. Import (Crucial for Migrations)
+
+If John and the Finance group already exist in CyberArk because someone created them manually years ago, Terraform does NOT know about them yet. You must import them:
+
+```bash
+terraform import cyberark_user.john 101
+terraform import cyberark_group.finance 501
+
+```
+
+Terraform's state updates to reflect that it now owns these objects. It manages them going forward without needing to delete and recreate them.
+
+
+## 9. Drift (The Manual Changes Problem)
+
+If a rogue admin manually deletes Mike directly in the CyberArk dashboard, Terraform still expects Mike to exist in its state.
+
+On the next `terraform plan`, Terraform detects the missing user. Running `terraform apply` will automatically recreate Mike, instantly fixing the unauthorized manual change (drift).
+
+
+## Final Mental Model Summary
+
+1. **Okta:** Source data only (read via script or Okta Data Sources).
+2. **Configuration:** `.tf` files defining the desired state for CyberArk (can be one file or many).
+3. **Init:** Downloads the target API provider.
+4. **Plan:** Compares your local code to the live target API (CyberArk).
+5. **Apply:** Creates missing objects in the target system.
+6. **State:** Remembers everything to prevent duplicates.
+7. **Data Source:** Reads existing target objects safely so you can reference them.
+8. **Import:** Brings existing manual objects under Terraform's control.
+9. **Drift:** Automatically fixes manual, out-of-band changes.
+
+---
 ## Enterprise Offerings
 
 While Terraform open-source is highly capable, HashiCorp offers **Terraform Cloud** and **Terraform Enterprise**. These provide advanced features for organizations, such as centralized state management, simplified team collaboration, enhanced security controls, and a centralized UI for managing deployments.
