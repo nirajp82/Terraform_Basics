@@ -13,6 +13,9 @@ The IaC ecosystem can be broadly categorized into three distinct types, each des
 1. **Configuration Management**
 2. **Server Templating**
 3. **Infrastructure Provisioning**
+   
+   <img width="882" height="560" alt="image" src="https://github.com/user-attachments/assets/e4ae7557-6f16-4066-a25f-000e91f3a0e8" />
+
 
 ### 1. Configuration Management Tools
 
