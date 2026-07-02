@@ -260,3 +260,17 @@ Terraform is HashiCorp's open-source, vendor-agnostic infrastructure provisionin
 
 **Q: What are Data Sources used for in Terraform?**
 **A:** Data sources are used to read or fetch attributes from infrastructure that already exists (even if it isn't managed by Terraform) so that you can reference those attributes when building new resources.
+
+**Q: How is Terraform able to communicate with different systems like Okta and CyberArk?**
+**A:** Terraform uses plugins called **Providers**. Providers translate your written Terraform code into the exact API calls required by that specific platform. For this migration, you might use the Okta Provider to read source data, and you use the CyberArk Provider to create the new target data.
+
+**Q: What does it mean that Terraform's language is "declarative"?**
+**A:** It means you only need to define the *desired end-goal* (e.g., "I want a CyberArk group named Finance containing these three users"). You do not need to write the step-by-step API loops or error-handling scripts to build them; Terraform's engine figures out the execution path for you.
+
+**Q: What happens if an administrator manually deletes a user in CyberArk that Terraform was managing, and then you run `terraform apply`?**
+**A:** Terraform will check its State file, see that the user is supposed to exist (desired state) but is missing in the real world (current state), and it will automatically recreate the user to fix the configuration drift.
+
+**Q: What are Data Sources used for in an identity migration?**
+**A:** Data sources are used to "read" or fetch attributes from objects that already exist so that you can reference them. For example, you can use a Data Source to look up the ID of a default "Global Authentication Policy" in CyberArk, so you can assign your migrating users to it without Terraform trying to manage or overwrite the policy itself.
+
+
