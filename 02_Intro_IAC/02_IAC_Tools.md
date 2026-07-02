@@ -22,9 +22,9 @@ The IaC ecosystem can be broadly categorized into three distinct types, each des
 * **Examples:** Ansible, Puppet, Chef, SaltStack
 * **Primary Use Case:** Installing and managing software on *existing* infrastructure resources (servers, databases, network devices).
 * **Key Features:**
-* **Standardized Structure:** Unlike ad-hoc shell scripts, these tools maintain a consistent code structure that is easily version-controlled and shared.
-* **Multi-Node Execution:** Designed to execute code across multiple remote resources simultaneously.
-* **Idempotency:** A critical feature where running the same code multiple times yields the exact same state. It only applies necessary changes to bring the environment to the defined state, leaving already compliant configurations untouched.
+   * **Standardized Structure:** Unlike ad-hoc shell scripts, these tools maintain a consistent code structure that is easily version-controlled and shared.
+   * **Multi-Node Execution:** Designed to execute code across multiple remote resources simultaneously.
+   * **Idempotency:** A critical feature where running the same code multiple times yields the exact same state. It only applies necessary changes to bring the environment to the defined state, leaving already compliant configurations untouched.
 
 <img width="494" height="259" alt="image" src="https://github.com/user-attachments/assets/2dce9aed-5a0c-496d-8676-8eeec3aa352c" />
 
@@ -34,9 +34,9 @@ The IaC ecosystem can be broadly categorized into three distinct types, each des
 * **Examples:** Docker, Packer, Vagrant
 * **Primary Use Case:** Creating custom, pre-configured images of virtual machines or containers.
 * **Key Features:**
-* **Pre-baked Dependencies:** Images contain all required software and dependencies out of the box, minimizing post-deployment installation steps.
-* **Common Artifacts:** Examples include Amazon Machine Images (AMIs), DockerHub container images, or VM images from platforms like osboxes.org.
-* **Immutable Infrastructure:** Promotes an architecture where deployed instances are never modified in place. If an update is required, the base template/image is modified, a new image is built, and the old instance is completely replaced by a new one.
+   * **Pre-baked Dependencies:** Images contain all required software and dependencies out of the box, minimizing post-deployment installation steps.
+   * **Common Artifacts:** Examples include Amazon Machine Images (AMIs), DockerHub container images, or VM images from platforms like osboxes.org.
+   * **Immutable Infrastructure:** Promotes an architecture where deployed instances are never modified in place. If an update is required, the base template/image is modified, a new image is built, and the old instance is completely replaced by a new one.
 
 <img width="819" height="513" alt="image" src="https://github.com/user-attachments/assets/78f89506-9b15-4978-9712-732abce39de1" />
 
@@ -46,9 +46,9 @@ The IaC ecosystem can be broadly categorized into three distinct types, each des
 * **Examples:** Terraform, AWS CloudFormation
 * **Primary Use Case:** Deploying and managing the foundational infrastructure components themselves (virtual machines, VPCs, subnets, security groups, storage).
 * **Key Features:**
-* **Declarative Approach:** Users define the desired end state of the infrastructure, and the tool determines how to achieve it.
-* **Cloud Scope:** Can manage cloud-native services across various layers.
-* **Platform Support:** While tools like AWS CloudFormation are cloud-specific (vendor-locked to AWS), tools like Terraform are vendor-agnostic and leverage provider plugins to support almost all major cloud platforms.
+   * **Declarative Approach:** Users define the desired end state of the infrastructure, and the tool determines how to achieve it.
+   * **Cloud Scope:** Can manage cloud-native services across various layers.
+   * **Platform Support:** While tools like AWS CloudFormation are cloud-specific (vendor-locked to AWS), tools like Terraform are vendor-agnostic and leverage provider plugins to support almost all major cloud platforms.
 
 <img width="413" height="205" alt="image" src="https://github.com/user-attachments/assets/116daf8c-510f-43aa-b2d5-6d70a2a72eb2" />
 
