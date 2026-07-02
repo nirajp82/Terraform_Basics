@@ -29,14 +29,63 @@ resource "local_file" "pet" {
 
 Breaking down this code line-by-line:
 
-1. **`resource` (Block Type):** A fixed keyword indicating that this block defines an infrastructure object to be managed.
-2. **`local_file` (Resource Type):** A fixed string defined by the plugin provider. It consists of two parts separated by an underscore:
-* **Before the `_` (`local`):** The **Provider** name (responsible for managing the API connection).
-* **After the `_` (`file`):** The specific **Component Type** within that provider.
 
+| Part               | What is it?        | Who decides it? | Can you change it?                                                                                |
+| ------------------ | ------------------ | --------------- | ------------------------------------------------------------------------------------------------- |
+| `resource`         | **Block Type**     | Terraform       | ❌ No. Must be one of Terraform's block types (`resource`, `variable`, `output`, `provider`, etc.) |
+| `"local_file"`     | **Resource Type**  | Provider        | ❌ No. Must be a valid resource type provided by the installed provider.                           |
+| `"pet"`            | **Resource Name**  | You             | ✅ Yes. Any meaningful name (e.g., `pet`, `notes`, `my_file`).                                     |
+| `filename`         | **Argument Name**  | Provider        | ❌ No. Must be a supported argument for `local_file`.                                              |
+| `"/root/pets.txt"` | **Argument Value** | You             | ✅ Yes. Any valid file path.                                                                       |
+| `content`          | **Argument Name**  | Provider        | ❌ No. Must be a supported argument for `local_file`.                                              |
+| `"We love pets."`  | **Argument Value** | You             | ✅ Yes. Any text you want to write to the file.                                                    |
 
-3. **`pet` (Resource Name):** A custom, user-defined **logical identity** used to reference this specific block elsewhere within your code.
-4. **`filename` & `content` (Arguments):** Resource-specific properties. For a `local_file`, `filename` expects an absolute path and `content` defines what text goes inside it.
+### Easy rule to remember
+
+* **Terraform decides** → Block types (`resource`, `variable`, `output`, etc.)
+* **Provider decides** → Resource types (`local_file`, `aws_instance`) and argument names (`filename`, `content`)
+* **You decide** → Resource names (`pet`) and argument values (`/root/pets.txt`, `"We love pets."`)
+
+This **Terraform → Provider → You** rule works for almost every Terraform configuration, making it a good mental model to remember.
+
+### How is `pet` used later?
+
+Terraform references a resource using this format:
+
+```text
+<Resource Type>.<Resource Name>
+```
+
+In this example:
+
+```text
+local_file.pet
+```
+
+Here:
+
+* `local_file` → tells Terraform **which type of resource** you're referring to.
+* `pet` → identifies **which specific `local_file` resource** you mean.
+
+For example, if you had two files:
+
+```hcl
+resource "local_file" "pet" {
+  ...
+}
+
+resource "local_file" "notes" {
+  ...
+}
+```
+
+You would refer to them as:
+
+```text
+local_file.pet
+local_file.notes
+```
+
 
 ---
 
