@@ -12,8 +12,6 @@ Terraform is a widely used, open-source Infrastructure as Code (IaC) tool develo
 * **Speed:** Enables the building, managing, and destroying of infrastructure in minutes.
 * **Platform Agnostic:** Capable of deploying infrastructure across a vast array of platforms, including public clouds (AWS, GCP, Azure) and on-premise private clouds (VMware vSphere).
 
-<img width="1140" height="522" alt="image" src="https://github.com/user-attachments/assets/5ae972d6-c4c0-4935-98bb-e16ad56056a4" />
-
 ---
 
 ## How Terraform Works
@@ -31,6 +29,8 @@ Some common providers are:
 * **Monitoring:** Datadog, Grafana, Wavefront, Sumo Logic
 * **Databases:** MongoDB, MySQL, PostgreSQL, InfluxDB
 * **Version Control:** GitHub, GitLab, Bitbucket
+
+<img width="1140" height="522" alt="image" src="https://github.com/user-attachments/assets/5ae972d6-c4c0-4935-98bb-e16ad56056a4" />
 
 
 ### 2. HashiCorp Configuration Language (HCL)
