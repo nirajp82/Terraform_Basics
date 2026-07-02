@@ -20,6 +20,13 @@ Consider a basic example of managing a file on your local operating system (`loc
 <img width="640" height="206" alt="image" src="https://github.com/user-attachments/assets/70dd6b42-d92e-4011-a658-b65678628885" />
 
 ```hcl
+resource "aws_instance" "webserver" {
+  ami           = "ami-0c2f25c1f66a1ff4d"
+  instance_type = "t2.micro"
+}
+```
+
+```hcl
 resource "local_file" "pet" {
   filename = "/root/pets.txt"
   content  = "We love pets."
