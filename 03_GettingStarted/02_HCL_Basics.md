@@ -17,8 +17,7 @@ An HCL file consists of two primary elements: **Blocks** and **Arguments**.
 
 Consider a basic example of managing a file on your local operating system (`local.tf`):
 
-<img width="339" height="48" alt="image" src="https://github.com/user-attachments/assets/ad155c19-b2cf-4dfb-834e-6d7e3a9a2c64" />
-
+<img width="640" height="206" alt="image" src="https://github.com/user-attachments/assets/70dd6b42-d92e-4011-a658-b65678628885" />
 
 ```hcl
 resource "local_file" "pet" {
