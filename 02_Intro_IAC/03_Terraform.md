@@ -12,6 +12,8 @@ Terraform is a widely used, open-source Infrastructure as Code (IaC) tool develo
 * **Speed:** Enables the building, managing, and destroying of infrastructure in minutes.
 * **Platform Agnostic:** Capable of deploying infrastructure across a vast array of platforms, including public clouds (AWS, GCP, Azure) and on-premise private clouds (VMware vSphere).
 
+<img width="728" height="403" alt="image" src="https://github.com/user-attachments/assets/0ddae2ce-5e07-4de4-8f9c-8d0bd17d976a" />
+
 ---
 
 ## How Terraform Works
