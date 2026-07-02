@@ -8,7 +8,7 @@ This document details the structure of HashiCorp Configuration Language (HCL), t
 
 An HCL file consists of two primary elements: **Blocks** and **Arguments**.
 
-<img width="469" height="187" alt="image" src="https://github.com/user-attachments/assets/0e6446b7-7b41-4236-8fd5-874d5fd702f0" />
+<img width="235" height="95" alt="image" src="https://github.com/user-attachments/assets/0e6446b7-7b41-4236-8fd5-874d5fd702f0" />
 
 * **Block:** Defined using curly braces `{}`. It represents an object or component of your infrastructure (e.g., a resource to be built).
 * **Arguments:** Written inside blocks as `key = value` pairs. Arguments supply the specific configuration data required by that block.
@@ -16,6 +16,9 @@ An HCL file consists of two primary elements: **Blocks** and **Arguments**.
 ### Anatomy of a Resource Block
 
 Consider a basic example of managing a file on your local operating system (`local.tf`):
+
+<img width="339" height="48" alt="image" src="https://github.com/user-attachments/assets/ad155c19-b2cf-4dfb-834e-6d7e3a9a2c64" />
+
 
 ```hcl
 resource "local_file" "pet" {
