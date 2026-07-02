@@ -259,18 +259,19 @@ Terraform is HashiCorp's open-source, vendor-agnostic infrastructure provisionin
 **A:** Terraform will check its **State** file, see that the database is supposed to exist (desired state) but is missing in the real world (current state), and it will automatically recreate the database to fix the configuration drift.
 
 **Q: What are Data Sources used for in Terraform?**
-**A:** Data sources are used to read or fetch attributes from infrastructure that already exists (even if it isn't managed by Terraform) so that you can reference those attributes when building new resources.
+**A:** Data sources are used to read or fetch attributes from infrastructure that already exists (even if it isn't managed by Terraform) so that you can reference those attributes when building new resources. For example, you can use a Data Source to look up the ID of a default "Global Authentication Policy" in CyberArk, so you can assign your migrating users to it without Terraform trying to manage or overwrite the policy itself.
 
-**Q: How is Terraform able to communicate with different systems like Okta and CyberArk?**
-**A:** Terraform uses plugins called **Providers**. Providers translate your written Terraform code into the exact API calls required by that specific platform. For this migration, you might use the Okta Provider to read source data, and you use the CyberArk Provider to create the new target data.
+**Q: In an Okta to CyberArk migration, why do we use `cyberark_user` for our resource blocks instead of `okta_user`?**
+**A:** Because Terraform is actively managing the *target* destination (CyberArk). In this workflow, Okta is just the source of the data, so you use the CyberArk Provider to actually build the desired state.
 
-**Q: What does it mean that Terraform's language is "declarative"?**
-**A:** It means you only need to define the *desired end-goal* (e.g., "I want a CyberArk group named Finance containing these three users"). You do not need to write the step-by-step API loops or error-handling scripts to build them; Terraform's engine figures out the execution path for you.
+**Q: How does Terraform know not to create duplicate users if you run `terraform apply` twice?**
+**A:** Terraform tracks everything it creates in a hidden file called `terraform.tfstate`. It maps your written code to the real-world CyberArk API IDs. If the state file shows the user was already created, Terraform safely skips it on the next run.
 
-**Q: What happens if an administrator manually deletes a user in CyberArk that Terraform was managing, and then you run `terraform apply`?**
-**A:** Terraform will check its State file, see that the user is supposed to exist (desired state) but is missing in the real world (current state), and it will automatically recreate the user to fix the configuration drift.
+**Q: If a user or group was created manually in CyberArk years ago, how do you bring it under Terraform's control without deleting it?**
+**A:** You use the `terraform import` command. This tells Terraform to find the existing object in CyberArk and attach its ID to your `.tf` code, bringing it under Terraform's management going forward.
 
-**Q: What are Data Sources used for in an identity migration?**
-**A:** Data sources are used to "read" or fetch attributes from objects that already exist so that you can reference them. For example, you can use a Data Source to look up the ID of a default "Global Authentication Policy" in CyberArk, so you can assign your migrating users to it without Terraform trying to manage or overwrite the policy itself.
+**Q: What command should you run to safely verify what Terraform is going to do before it actually makes any changes to CyberArk?**
+**A:** `terraform plan`. It acts as a "dry-run" or preview, comparing your code to the live environment and printing out exactly what will be created, modified, or destroyed.
+
 
 
