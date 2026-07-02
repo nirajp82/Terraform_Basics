@@ -8,6 +8,8 @@ This document details the structure of HashiCorp Configuration Language (HCL), t
 
 An HCL file consists of two primary elements: **Blocks** and **Arguments**.
 
+<img width="469" height="187" alt="image" src="https://github.com/user-attachments/assets/0e6446b7-7b41-4236-8fd5-874d5fd702f0" />
+
 * **Block:** Defined using curly braces `{}`. It represents an object or component of your infrastructure (e.g., a resource to be built).
 * **Arguments:** Written inside blocks as `key = value` pairs. Arguments supply the specific configuration data required by that block.
 
