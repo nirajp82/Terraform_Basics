@@ -69,3 +69,6 @@ To solve this, organizations began leveraging cloud APIs to automate provisionin
 * Early automation relied on custom scripts using tools like **Shell**, **Python**, **Ruby**, **Perl**, or **PowerShell**.
 * Because every organization was trying to solve the exact same problem—deploying environments faster and more consistently—these disparate scripts eventually evolved into standardized, purpose-built tools.
 * This paradigm of managing and provisioning computing infrastructure through machine-readable definition files is known as **Infrastructure as Code (IaC)**.
+
+  <img width="997" height="595" alt="image" src="https://github.com/user-attachments/assets/6a62b386-70dd-48ae-9ff2-6a90fada000b" />
+
