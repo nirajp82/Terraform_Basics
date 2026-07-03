@@ -115,7 +115,89 @@ variable "x" { default = "Hello" }
 variable "Content" { default = "Hello" }   # inconsistent casing vs var.content
 ```
 
-Terraform merges `variables.tf` and `main.tf` into **one configuration** — no import or link statement is required.
+### How `variables.tf` and `main.tf` work together (no import needed)
+
+This is a common point of confusion if you come from languages like Python or JavaScript, where you **`import`** another file to use its variables. **Terraform does not work that way.**
+
+#### What actually happens
+
+When you run `terraform plan` or `terraform apply` from a configuration directory, Terraform:
+
+1. **Scans the entire directory** for every file ending in `.tf`
+2. **Reads all of them** — `main.tf`, `variables.tf`, `outputs.tf`, `cat.tf`, etc.
+3. **Combines them in memory** into **one single module** (one configuration)
+4. **Resolves references** — `var.content` in `main.tf` finds `variable "content"` declared in `variables.tf`
+
+There is **no** `import`, **`include`**, or **`link`** statement because **the folder is the boundary**, not the file.
+
+```text
+my-terraform-project/          ← you run terraform commands HERE
+├── main.tf                    ┐
+├── variables.tf               ├── all merged into ONE configuration
+└── outputs.tf                 ┘
+
+Terraform does NOT read:
+├── ../other-project/main.tf   ← different directory = different configuration
+└── scripts/setup.sh           ← not a .tf file
+```
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    RUN["terraform plan / apply"]
+    RUN --> DIR["Scan configuration directory"]
+    DIR --> F1["main.tf"]
+    DIR --> F2["variables.tf"]
+    DIR --> F3["any other .tf"]
+    F1 --> MERGE["Single in-memory module"]
+    F2 --> MERGE
+    F3 --> MERGE
+    MERGE --> RESOLVE["var.content links to variable content"]
+    RESOLVE --> PLAN["Build execution plan"]
+
+    style RUN fill:#374151,stroke:#9ca3af,color:#ffffff
+    style DIR fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style F1 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style F2 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style F3 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style MERGE fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style RESOLVE fill:#14532d,stroke:#4ade80,color:#ffffff
+    style PLAN fill:#14532d,stroke:#4ade80,color:#ffffff
+```
+
+#### Why split into two files if Terraform merges them anyway?
+
+**Only for humans** — file names are **organizational**, not functional.
+
+| File | Human purpose | Required by Terraform? |
+| --- | --- | --- |
+| `main.tf` | "Here are my resources" | No — could put everything in `foo.tf` |
+| `variables.tf` | "Here are my inputs" | No — variables could live in `main.tf` |
+| `outputs.tf` | "Here are my outputs" | No — convention only |
+
+You could declare variables and resources in **one file** and Terraform would behave identically:
+
+```hcl
+# single-file.tf — valid, but harder to maintain at scale
+variable "content" { default = "Hello" }
+
+resource "local_file" "pet" {
+  content = var.content
+}
+```
+
+Splitting into `variables.tf` + `main.tf` is **industry practice** for readability — not a technical requirement.
+
+#### When would `var.content` **fail** to find `variable "content"`?
+
+| Situation | Result |
+| --- | --- |
+| `variable "content"` in `variables.tf`, `var.content` in `main.tf`, **same folder** | **Works** |
+| Variable declared in **parent or sibling** folder | **Fails** — different configuration |
+| Variable in **subfolder** without `module` block | **Fails** — subfolder not auto-loaded |
+| Typo: `variable "content"` but `var.contnt` | **Fails** — name mismatch |
+
+> **Remember:** Same configuration directory + `.tf` extension = **one shared namespace**. `var.content` in any `.tf` file can see `variable "content"` declared in any other `.tf` file in that same directory.
 
 ---
 
@@ -520,7 +602,7 @@ In your configuration directory:
 
 ### Topic Summary: Input Variables
 
-Hardcoded values in resource blocks limit reuse. **Input variables** declared in **`variables.tf`** with optional **`default`** values parameterize **argument values**, string templates, and nested fields — but **not** resource type or resource name labels (those must be literal strings). Reference values with **`var.<name>`** using **snake_case** naming. Supply values via **`default`**, auto-loaded **`terraform.tfvars`**, **`-var-file`**, **`-var`**, or **`TF_VAR_`** — with CLI overrides winning over defaults. Update **`variables.tf`** or **`.tfvars`** and run **`terraform apply`** without changing resource block structure in `main.tf`.
+Hardcoded values in resource blocks limit reuse. **Input variables** declared in **`variables.tf`** with optional **`default`** values parameterize **argument values**, string templates, and nested fields — but **not** resource type or resource name labels (those must be literal strings). All `.tf` files in the **same directory** are **auto-merged into one module** — no import needed — so `var.content` in `main.tf` resolves to `variable "content"` in `variables.tf`. Reference values with **`var.<name>`** using **snake_case** naming. Supply values via **`default`**, auto-loaded **`terraform.tfvars`**, **`-var-file`**, **`-var`**, or **`TF_VAR_`**. Update **`variables.tf`** or **`.tfvars`** and run **`terraform apply`** without changing resource block structure in `main.tf`.
 
 ### Knowledge Check Q&A
 
@@ -579,3 +661,11 @@ Hardcoded values in resource blocks limit reuse. **Input variables** declared in
 **Q: If the same variable has a `default`, a value in `terraform.tfvars`, and a `-var` flag, which wins?**
 
 **A:** **`-var` on the CLI** has the highest priority, then **`-var-file`**, then **`terraform.tfvars` / `*.auto.tfvars`**, then **`TF_VAR_` env vars**, then **`default`** in `variables.tf`.
+
+**Q: Why does `main.tf` find variables from `variables.tf` without an import statement?**
+
+**A:** Terraform **automatically loads every `.tf` file** in the configuration directory and merges them into **one module** before planning or applying. The folder is the boundary — not the file. `variables.tf` is only a naming convention for humans; Terraform treats it the same as any other `.tf` file in that directory.
+
+**Q: Could you put variable blocks and resource blocks in the same file instead of splitting them?**
+
+**A:** **Yes.** Terraform would behave the same. Teams split into `variables.tf` and `main.tf` for **readability and organization**, not because the engine requires separate files.
