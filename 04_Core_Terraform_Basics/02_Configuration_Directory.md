@@ -91,9 +91,73 @@ flowchart TD
 
 ### The golden rule
 
-> **Terraform reads every file ending in `.tf` in the configuration directory and merges them into one configuration.**
+> **Terraform reads every file ending in `.tf` in the configuration directory and merges them into one configuration in memory.**
 
 File names like `local.tf` or `cat.tf` work fine — but **`main.tf`** is the standard name for your primary file because that is what engineers expect to open first.
+
+### Where exactly does Terraform load from?
+
+When you run `terraform plan` or `terraform apply` from `my-terraform-project/`, Terraform loads configuration **only from that directory**:
+
+```text
+my-terraform-project/                 ← YOU RUN COMMANDS HERE
+├── main.tf                           ← LOADED (merged into memory)
+├── cat.tf                            ← LOADED (merged into memory)
+├── variables.tf                      ← LOADED (merged into memory)
+├── pet.txt                           ← NOT loaded (created by apply)
+├── terraform.tfstate                 ← NOT loaded as config (state is separate)
+├── .terraform/                       ← NOT loaded (provider plugins on disk)
+└── modules/                          ← NOT loaded automatically (only when referenced)
+    └── vpc/
+        └── main.tf                   ← loaded only via a module block in root .tf files
+```
+
+| Location | Loaded into configuration? |
+| --- | --- |
+| Any `*.tf` file **directly inside** the configuration directory | **Yes** — merged together |
+| Files in **subfolders** (e.g. `modules/vpc/main.tf`) | **No** — unless you explicitly call `module "vpc" { ... }` |
+| `.tf` files in **parent or sibling** folders | **No** — Terraform does not search outside the working directory |
+| `.tfvars`, `.tfstate`, `.terraform/`, `README.md` | **No** |
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    RUN["You run terraform plan from my-terraform-project/"]
+    RUN --> SCAN["Scan THIS folder only"]
+    SCAN --> TF["Find all *.tf files"]
+    TF --> PARSE["Parse and merge into one config in RAM"]
+    PARSE --> EXEC["Build execution plan"]
+
+    style RUN fill:#374151,stroke:#9ca3af,color:#ffffff
+    style SCAN fill:#374151,stroke:#9ca3af,color:#ffffff
+    style TF fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style PARSE fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style EXEC fill:#14532d,stroke:#4ade80,color:#ffffff
+```
+
+### How much memory does the merged configuration use?
+
+Terraform does **not** execute `.tf` files one at a time from disk. It **reads all of them, parses the HCL, and holds the combined result in RAM** as a single configuration object before planning or applying.
+
+Memory usage depends on **how large and complex** that merged configuration is:
+
+| Project size | Typical `.tf` files on disk | Config in RAM (approx.) | Full `terraform` process (approx.) |
+| --- | --- | --- | --- |
+| **Lab / learning** (2–5 resources, 1–3 files) | A few KB | **< 1 MB** | **50–150 MB** (includes provider plugins) |
+| **Small team project** (50–100 resources) | Tens to hundreds of KB | **1–10 MB** | **100–300 MB** |
+| **Large enterprise** (1000+ resources, many modules) | Several MB | **50–500+ MB** | **500 MB – 2+ GB** |
+
+**What drives memory up:**
+* More **resource blocks** and **data sources**
+* More **variables**, **outputs**, and **expressions**
+* More **child modules** (each module config is also loaded into memory)
+* Larger **provider** plugins loaded during `init`
+
+**What does *not* significantly affect config memory:**
+* Splitting the same resources across 1 file vs. 10 files — the merged result is identical, so memory is effectively the same
+* The size of `terraform.tfstate` on disk (state is loaded separately and can add its own memory cost)
+
+For our `main.tf` + `cat.tf` lab example with two `local_file` resources, the merged configuration in memory is **tiny** — far less than 1 MB. Most of the RAM you see used by the `terraform` process goes to the **provider binary** and runtime, not to parsing two small `.tf` files.
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
@@ -240,13 +304,21 @@ Step 5 proves that **file layout does not change infrastructure** — only the r
 
 ### Topic Summary: Configuration Directory
 
-A Terraform **configuration directory** is the root folder for your project. Terraform **merges every `.tf` file** in that directory into one configuration before `plan` or `apply`. Industry practice uses **`main.tf`** as the primary file and splits inputs, outputs, and providers into `variables.tf`, `outputs.tf`, and `providers.tf`. You can also split resources across domain files (`network.tf`, `cat.tf`) as the project grows. Only the `.tf` extension is required — everything else is convention for readability.
+A Terraform **configuration directory** is the root folder where you run all Terraform commands. Terraform loads **only** the `*.tf` files **directly inside that folder**, merges them into **one in-memory configuration**, then runs `plan` or `apply`. Subfolders are not scanned unless referenced as modules. For small labs, config memory is under 1 MB; the full Terraform process typically uses 50–150 MB mostly for provider plugins. Industry practice uses **`main.tf`** plus `variables.tf`, `outputs.tf`, and `providers.tf` for organization.
 
 ### Knowledge Check Q&A
 
 **Q: What is a Terraform configuration directory?**
 
-**A:** The project folder containing your `.tf` files. All Terraform commands are run from this directory, and Terraform loads every `.tf` file inside it.
+**A:** It is the **project folder where you run Terraform commands** (`init`, `plan`, `apply`). Terraform scans **only that directory** — not parent folders, not sibling folders — and loads **every `*.tf` file directly inside it**. All loaded files are parsed and **merged into one single configuration held in memory** before Terraform builds the execution plan.
+
+**Q: Where does Terraform load `.tf` files from — and where does it NOT load from?**
+
+**A:** It loads from the **current working directory** (the configuration directory) only. Files like `main.tf`, `cat.tf`, and `variables.tf` in that folder are merged together. It does **not** load `.tf` files from subfolders unless you reference them with a `module` block. It does **not** load `terraform.tfstate`, `.terraform/`, `.tfvars`, or non-`.tf` files as configuration.
+
+**Q: How much memory does the merged configuration use?**
+
+**A:** It depends on project size. For a small lab (2 resources, 2 `.tf` files), the merged config in RAM is **less than 1 MB**. The full `terraform` process typically uses **50–150 MB** because provider plugins and runtime overhead use most of the memory — not the `.tf` files themselves. Large projects with thousands of resources can use **hundreds of MB to gigabytes**. Splitting the same resources across 1 file or 10 files does **not** meaningfully change memory — the merged result is identical.
 
 **Q: If you add `cat.tf` to the directory, does Terraform automatically use it?**
 
