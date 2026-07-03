@@ -72,10 +72,11 @@ Within sections, use:
 
 Cursor/VS Code Mermaid preview often renders **unstyled nodes** with light backgrounds and unreadable text. Follow these rules on every diagram:
 
-1. Use `%%{init: {'theme': 'dark'}}%%` as the init block.
+1. Use `%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%` as the init block.
 2. Apply explicit `style` to **every node** — do not rely on `classDef` alone or subgraph styling.
 3. **Avoid subgraphs** when possible; use flat flowcharts with labeled nodes instead.
 4. Always set `color:#ffffff` in each `style` line.
+5. For long labels (paths, URLs), wrap in `<div style='white-space:nowrap'>...</div>` to prevent text wrapping inside boxes.
 
 **Per-node style template:**
 
@@ -83,17 +84,19 @@ Cursor/VS Code Mermaid preview often renders **unstyled nodes** with light backg
 style NodeId fill:#374151,stroke:#9ca3af,color:#ffffff
 ```
 
-**Semantic colors (fill / stroke):**
+**Semantic colors (fill / stroke) — reserve amber for warnings only:**
 
 | Meaning | fill | stroke |
 | --- | --- | --- |
 | Default / neutral | `#374151` | `#9ca3af` |
 | Success / official | `#14532d` | `#4ade80` |
 | Info / registry | `#1e3a5f` | `#60a5fa` |
-| Warning / binary | `#713f12` | `#fb923c` |
-| Error / blocker | `#7f1d1d` | `#f87171` |
+| Accent / binary / community / private | `#312e81` | `#a78bfa` |
+| **Warning only** | `#713f12` | `#fbbf24` |
 
-**Sequence diagram phase backgrounds:** `rgb(20, 50, 35)` init · `rgb(20, 45, 75)` plan · `rgb(55, 38, 18)` apply
+Do **not** use red tones except for explicit warning nodes (e.g. "will FAIL").
+
+**Sequence diagram phase backgrounds:** `rgb(20, 50, 35)` init · `rgb(20, 45, 75)` plan · `rgb(20, 55, 40)` apply
 
 ### C. Topic Summary (required, near the end)
 
@@ -109,9 +112,10 @@ style NodeId fill:#374151,stroke:#9ca3af,color:#ffffff
 ### Knowledge Check Q&A
 
 **Q: <Question>**
+
 **A:** <Clear, complete answer>
 
-(Include 4–8 questions covering the most important concepts from the lesson.)
+(Include 4–8 questions. Put a blank line between each question and answer, and between each Q&A pair.)
 ```
 
 ---

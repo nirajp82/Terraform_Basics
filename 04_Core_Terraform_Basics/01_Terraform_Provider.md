@@ -25,7 +25,7 @@ resource "local_file" "pet" {
 ```
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     A["main.tf written"] --> B["No provider plugin on disk"]
     B --> C["No /root/pets.txt yet"]
@@ -35,7 +35,7 @@ flowchart TD
     style A fill:#374151,stroke:#9ca3af,color:#ffffff
     style B fill:#374151,stroke:#9ca3af,color:#ffffff
     style C fill:#374151,stroke:#9ca3af,color:#ffffff
-    style D fill:#7f1d1d,stroke:#f87171,color:#ffffff
+    style D fill:#713f12,stroke:#fbbf24,color:#ffffff
     style E fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
 
@@ -53,7 +53,7 @@ Terraform reads your resource block and extracts two critical pieces of informat
 | Resource name | `pet` | Your logical label for this resource (not used during init) |
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart LR
     CODE["resource local_file pet"] --> SPLIT["Split resource type"]
     SPLIT --> PROV["Provider = local"]
@@ -77,7 +77,7 @@ flowchart LR
 ## 3. What Happens Internally During `terraform init`
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     START(["You run terraform init"]) --> S1["Step 1: Scan all .tf files"]
     S1 --> S2["Step 2: Detect local_file needs local provider"]
@@ -99,7 +99,7 @@ flowchart TD
     style S6 fill:#374151,stroke:#9ca3af,color:#ffffff
     style DONE fill:#14532d,stroke:#4ade80,color:#ffffff
     style REG fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
-    style DISK fill:#713f12,stroke:#fb923c,color:#ffffff
+    style DISK fill:#312e81,stroke:#a78bfa,color:#ffffff
 ```
 
 ### The journey in plain English
@@ -120,16 +120,16 @@ flowchart TD
 ## 4. Where Terraform Downloads From
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TB
-    MACH["Your Machine: /root/terraform-projects/HCL/"] --> TF["main.tf"]
+    MACH["<div style='white-space:nowrap'>Your Machine: /root/terraform-projects/HCL/</div>"] --> TF["main.tf"]
     TF --> CLI["Terraform CLI"]
-    CLI --> REQ["terraform init: Request hashicorp/local"]
-    REQ -->|HTTPS download| REG["registry.terraform.io — Public Registry"]
+    CLI --> REQ["<div style='white-space:nowrap'>terraform init: Request hashicorp/local</div>"]
+    REQ -->|HTTPS download| REG["<div style='white-space:nowrap'>registry.terraform.io — Public Registry</div>"]
     REG --> OFF["Official: local, aws, google"]
     REG --> PART["Partner: DigitalOcean, Heroku, F5"]
     REG --> COMM["Community: contributor providers"]
-    REG -->|signed binary v2.0.0| SAVE["Save to .terraform/providers/"]
+    REG -->|signed binary v2.0.0| SAVE["<div style='white-space:nowrap'>Save to .terraform/providers/</div>"]
 
     style MACH fill:#374151,stroke:#9ca3af,color:#ffffff
     style TF fill:#374151,stroke:#9ca3af,color:#ffffff
@@ -138,8 +138,8 @@ flowchart TB
     style REG fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
     style OFF fill:#14532d,stroke:#4ade80,color:#ffffff
     style PART fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
-    style COMM fill:#713f12,stroke:#fb923c,color:#ffffff
-    style SAVE fill:#713f12,stroke:#fb923c,color:#ffffff
+    style COMM fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style SAVE fill:#312e81,stroke:#a78bfa,color:#ffffff
 ```
 
 ### The source address — how Terraform knows what to download
@@ -147,9 +147,9 @@ flowchart TB
 The identifier `hashicorp/local` (shown in init output) is called the **source address**.
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart LR
-    FULL["registry.terraform.io / hashicorp / local"]
+    FULL["<div style='white-space:nowrap'>registry.terraform.io / hashicorp / local</div>"]
     SHORT["hashicorp / local"]
     FULL --- EQ["="]
     EQ --- SHORT
@@ -158,7 +158,7 @@ flowchart LR
     FULL --> T1["type: local"]
     SHORT --> N2["namespace: hashicorp"]
     SHORT --> T2["type: local"]
-    SHORT --> DEF["hostname defaults to registry.terraform.io"]
+    SHORT --> DEF["<div style='white-space:nowrap'>hostname defaults to registry.terraform.io</div>"]
 
     style FULL fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
     style SHORT fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
@@ -182,25 +182,25 @@ flowchart LR
 **Yes.** `registry.terraform.io` is only the **default** registry — not the only one Terraform can use.
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     ADDR["Provider source address"] --> Q{"Hostname included?"}
-    Q -->|No| PUB["registry.terraform.io — Public Registry"]
+    Q -->|No| PUB["<div style='white-space:nowrap'>registry.terraform.io — Public Registry</div>"]
     Q -->|Yes| CUSTOM["Custom registry host"]
-    CUSTOM --> TFE["app.terraform.io — Terraform Cloud"]
-    CUSTOM --> SELF["terraform.mycompany.com — Self-hosted"]
+    CUSTOM --> TFE["<div style='white-space:nowrap'>app.terraform.io — Terraform Cloud</div>"]
+    CUSTOM --> SELF["<div style='white-space:nowrap'>terraform.mycompany.com — Self-hosted</div>"]
     CUSTOM --> MIRROR["Local filesystem mirror"]
-    PUB --> PATH1[".terraform/providers/registry.terraform.io/..."]
-    TFE --> PATH2[".terraform/providers/app.terraform.io/..."]
-    SELF --> PATH3[".terraform/providers/terraform.mycompany.com/..."]
+    PUB --> PATH1["<div style='white-space:nowrap'>.terraform/providers/registry.terraform.io/...</div>"]
+    TFE --> PATH2["<div style='white-space:nowrap'>.terraform/providers/app.terraform.io/...</div>"]
+    SELF --> PATH3["<div style='white-space:nowrap'>.terraform/providers/terraform.mycompany.com/...</div>"]
 
     style ADDR fill:#374151,stroke:#9ca3af,color:#ffffff
     style Q fill:#374151,stroke:#9ca3af,color:#ffffff
     style PUB fill:#14532d,stroke:#4ade80,color:#ffffff
-    style CUSTOM fill:#713f12,stroke:#fb923c,color:#ffffff
-    style TFE fill:#713f12,stroke:#fb923c,color:#ffffff
-    style SELF fill:#713f12,stroke:#fb923c,color:#ffffff
-    style MIRROR fill:#713f12,stroke:#fb923c,color:#ffffff
+    style CUSTOM fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style TFE fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style SELF fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style MIRROR fill:#312e81,stroke:#a78bfa,color:#ffffff
     style PATH1 fill:#374151,stroke:#9ca3af,color:#ffffff
     style PATH2 fill:#374151,stroke:#9ca3af,color:#ffffff
     style PATH3 fill:#374151,stroke:#9ca3af,color:#ffffff
@@ -227,9 +227,9 @@ terraform.mycompany.com/acme/internal        → private company registry (not H
 ## 5. Where Terraform Puts the Downloaded Plugin
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
-    B1["BEFORE init: /root/terraform-projects/HCL/main.tf only"]
+    B1["<div style='white-space:nowrap'>BEFORE init: /root/terraform-projects/HCL/main.tf only</div>"]
     B1 -->|"terraform init"| A1["AFTER init: project folder"]
     A1 --> A2["main.tf"]
     A1 --> A3[".terraform/"]
@@ -238,7 +238,7 @@ flowchart TD
     A5 --> A6["hashicorp/local/"]
     A6 --> A7["2.0.0/"]
     A7 --> A8["linux_amd64/"]
-    A8 --> A9["terraform-provider-local_v2.0.0"]
+    A8 --> A9["<div style='white-space:nowrap'>terraform-provider-local_v2.0.0</div>"]
 
     style B1 fill:#374151,stroke:#9ca3af,color:#ffffff
     style A1 fill:#14532d,stroke:#4ade80,color:#ffffff
@@ -249,7 +249,7 @@ flowchart TD
     style A6 fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
     style A7 fill:#374151,stroke:#9ca3af,color:#ffffff
     style A8 fill:#374151,stroke:#9ca3af,color:#ffffff
-    style A9 fill:#713f12,stroke:#fb923c,color:#ffffff
+    style A9 fill:#312e81,stroke:#a78bfa,color:#ffffff
 ```
 
 ### What each path segment means
@@ -315,7 +315,7 @@ sequenceDiagram
     TF-->>You: Preview only
     end
 
-    rect rgb(55, 38, 18)
+    rect rgb(20, 55, 40)
     Note over You,FS: Phase 3 — terraform apply
     You->>TF: terraform apply
     TF->>Plg: Create local_file.pet
@@ -341,7 +341,7 @@ The **provider plugin** is the bridge between your HCL code and the real world. 
 ## 7. Three Tiers of Providers in the Registry
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     REG["registry.terraform.io"] --> OFF["Official — HashiCorp"]
     REG --> PART["Partner — vendor partners"]
@@ -355,8 +355,8 @@ flowchart TD
     style E1 fill:#14532d,stroke:#4ade80,color:#ffffff
     style PART fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
     style E2 fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
-    style COMM fill:#713f12,stroke:#fb923c,color:#ffffff
-    style E3 fill:#713f12,stroke:#fb923c,color:#ffffff
+    style COMM fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style E3 fill:#312e81,stroke:#a78bfa,color:#ffffff
 ```
 
 The **`local`** provider used in our example is an **official** HashiCorp provider.
@@ -380,34 +380,45 @@ When you write `resource "local_file" "pet"`, Terraform detects that it needs th
 ### Knowledge Check Q&A
 
 **Q: You have written `main.tf` but have not run any commands yet. Can Terraform create `/root/pets.txt`?**
+
 **A:** No. Without running `terraform init` first, the `local` provider plugin is not installed. Terraform cannot execute any resource until init downloads the required provider.
 
 **Q: When you run `terraform init`, where does Terraform download the provider from?**
+
 **A:** From the **Terraform Registry** at `registry.terraform.io`. For the `local` provider, it downloads `hashicorp/local` (equivalent to `registry.terraform.io/hashicorp/local`).
 
 **Q: After `terraform init`, where is the provider binary stored on your machine?**
+
 **A:** Inside the hidden `.terraform/providers/` directory in your project folder, under a path like `.terraform/providers/registry.terraform.io/hashicorp/local/<version>/<platform>/`.
 
 **Q: How does Terraform know it needs the `local` provider from the resource block `resource "local_file" "pet"`?**
+
 **A:** It reads the resource type `local_file` and extracts the provider name from the prefix before the underscore — `local`.
 
 **Q: Does running `terraform init` create or modify any real infrastructure?**
+
 **A:** No. `terraform init` only downloads provider plugins and prepares the working directory. It is safe to run multiple times.
 
 **Q: What is a provider source address, and what are its parts?**
+
 **A:** It is the identifier Terraform uses to find a plugin in the registry. Format: `[<hostname>/]<namespace>/<type>`. Example: `hashicorp/local` where `hashicorp` is the namespace and `local` is the provider type.
 
 **Q: What are the three tiers of providers in the Terraform Registry?**
+
 **A:** **Official** (HashiCorp-maintained), **Partner** (vendor-maintained through HashiCorp's partner program), and **Community** (maintained by individual contributors).
 
 **Q: What version of a provider does Terraform install by default during init?**
+
 **A:** The **latest available version** that satisfies the configuration, unless you explicitly constrain the version in your code.
 
 **Q: Will Terraform only download providers from HashiCorp's public registry?**
+
 **A:** No. `registry.terraform.io` is the **default** when no hostname is given (e.g., `hashicorp/local`). If the source address includes a different hostname — such as a Terraform Enterprise private registry or a self-hosted company registry — Terraform downloads from that host instead.
 
 **Q: Why does the `.terraform/providers/` folder contain `registry.terraform.io` in the path?**
+
 **A:** That folder segment records **which registry** the plugin was downloaded from. A provider from a private registry would show that registry's hostname in the path instead (e.g., `terraform.mycompany.com/...`).
 
 **Q: In this course, which registry do we use?**
+
 **A:** The public **Terraform Registry** at `registry.terraform.io`. All shorthand addresses like `hashicorp/local` resolve there by default.
