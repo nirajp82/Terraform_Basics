@@ -26,16 +26,17 @@ Terraform fully supports **multiple providers in the same configuration director
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     MAIN["main.tf"]
-    MAIN --> LOCAL["local_file.pet — local provider"]
     MAIN --> RANDOM["random_pet.my_pet — random provider"]
-    LOCAL --> DISK["Writes root/pet.txt to disk"]
-    RANDOM --> STATE["Stores random pet name in state"]
+    MAIN --> LOCAL["local_file.pet — local provider"]
+    RANDOM --> ID["id = dog-faithful-wolf"]
+    ID --> LOCAL
+    LOCAL --> DISK["Writes root/dog-faithful-wolf.txt"]
 
     style MAIN fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
-    style LOCAL fill:#374151,stroke:#9ca3af,color:#ffffff
     style RANDOM fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style LOCAL fill:#374151,stroke:#9ca3af,color:#ffffff
+    style ID fill:#14532d,stroke:#4ade80,color:#ffffff
     style DISK fill:#14532d,stroke:#4ade80,color:#ffffff
-    style STATE fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
 
 ---
@@ -75,24 +76,71 @@ random_pet.my_pet: Creation complete after 0s [id=dog-faithful-wolf]
 
 The name is random — it does not have to include "dog" every time; `prefix` only prepends your chosen text. In course materials, a dog icon may be used as a visual shorthand for "pet" — the provider can generate any pet-style name.
 
----
+### Referencing `id` from another resource
 
-## 3. Updated `main.tf` — Two Providers, Two Resources
+The real value of `random_pet` is the **`id`** attribute — you pass it into other resources using a **reference**:
 
-Add the `random_pet` block to your existing `main.tf`:
+```text
+random_pet.my_pet.id
+ │              │    │
+ │              │    └── attribute exported after apply (the generated name)
+ │              └── your resource name
+ └── resource type prefix (provider = random)
+```
+
+**Example — use `id` in `local_file` content and filename:**
 
 ```hcl
-resource "local_file" "pet" {
-  filename = "root/pet.txt"
-  content  = "I love pet!"
-}
-
 resource "random_pet" "my_pet" {
   prefix    = "dog"
   separator = "-"
   length    = 2
 }
+
+resource "local_file" "pet" {
+  filename = "root/${random_pet.my_pet.id}.txt"
+  content  = "My pet is called ${random_pet.my_pet.id}"
+}
 ```
+
+| Reference in `local_file` | Resolves to (example) |
+| --- | --- |
+| `filename = "root/${random_pet.my_pet.id}.txt"` | `root/dog-faithful-wolf.txt` |
+| `content = "My pet is called ${random_pet.my_pet.id}"` | `My pet is called dog-faithful-wolf` |
+
+Terraform automatically knows **`local_file.pet` depends on `random_pet.my_pet`** — the pet name must be generated before the file is written.
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart LR
+    R["random_pet.my_pet"] -->|"exports .id"| L["local_file.pet"]
+    L --> F["root/dog-faithful-wolf.txt"]
+
+    style R fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style L fill:#374151,stroke:#9ca3af,color:#ffffff
+    style F fill:#14532d,stroke:#4ade80,color:#ffffff
+```
+
+---
+
+## 3. Complete `main.tf` — Two Providers Linked by `id`
+
+The full configuration wires the **random** provider into the **local** provider via `random_pet.my_pet.id`:
+
+```hcl
+resource "random_pet" "my_pet" {
+  prefix    = "dog"
+  separator = "-"
+  length    = 2
+}
+
+resource "local_file" "pet" {
+  filename = "root/${random_pet.my_pet.id}.txt"
+  content  = "My pet is called ${random_pet.my_pet.id}"
+}
+```
+
+**If you already applied an older `local_file.pet` with a fixed filename (`root/pet.txt`),** adding the `random_pet` block and updating the reference will cause Terraform to **replace** the file resource with the new name. That is expected — the resource now depends on a dynamic `id`.
 
 Your configuration directory now depends on **two providers**:
 
@@ -166,18 +214,25 @@ terraform plan
 
 | Resource | Expected plan result |
 | --- | --- |
-| `local_file.pet` | **No changes** — already exists from a previous apply |
 | `random_pet.my_pet` | **`+ create`** — new resource block |
+| `local_file.pet` | **`+ create`** or **`-/+ replace`** — filename/content now use `${random_pet.my_pet.id}` |
+
+If `local_file.pet` already exists with a static path, plan may show **destroy and recreate** because the filename changed from `root/pet.txt` to `root/dog-faithful-wolf.txt`:
 
 ```diff
-  # local_file.pet will be unchanged
-  # random_pet.my_pet will be created
 + resource "random_pet" "my_pet" {
 +     length    = 2
 +     prefix    = "dog"
 +     separator = "-"
 +   }
+
+-/+ resource "local_file" "pet" {
+      ~ content  = "I love pet!" -> "My pet is called dog-faithful-wolf"
+      ~ filename = "root/pet.txt" -> "root/dog-faithful-wolf.txt"
+    }
 ```
+
+> The `~` symbol means **update in-place** where possible; `-/+` means **destroy and recreate** when a force-new attribute like `filename` changes.
 
 ### `terraform apply`
 
@@ -187,23 +242,57 @@ terraform apply
 
 | Resource | What happens |
 | --- | --- |
-| `local_file.pet` | **Left unchanged** — `root/pet.txt` is not recreated |
-| `random_pet.my_pet` | **Created** — random pet name generated and stored in state |
+| `random_pet.my_pet` | **Created first** — generates `id` (e.g., `dog-faithful-wolf`) |
+| `local_file.pet` | **Created/updated** — writes file using that `id` in path and content |
 
 ```text
-local_file.pet: Refreshing state...
 random_pet.my_pet: Creating...
 random_pet.my_pet: Creation complete after 0s [id=dog-faithful-wolf]
+local_file.pet: Creating...
+local_file.pet: Creation complete after 0s [id=...]
 
-Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
 ```
+
+### Verify the `id` on disk and in state
+
+**File on disk** (`root/dog-faithful-wolf.txt`):
+
+```text
+My pet is called dog-faithful-wolf
+```
+
+**Inspect state with `terraform show`:**
+
+```bash
+terraform show
+```
+
+```hcl
+# random_pet.my_pet:
+resource "random_pet" "my_pet" {
+    id        = "dog-faithful-wolf"
+    length    = 2
+    prefix    = "dog"
+    separator = "-"
+}
+
+# local_file.pet:
+resource "local_file" "pet" {
+    content  = "My pet is called dog-faithful-wolf"
+    filename = "root/dog-faithful-wolf.txt"
+    # ...
+}
+```
+
+The same `dog-faithful-wolf` value appears in **`random_pet.my_pet.id`**, the **file content**, the **filename**, and **state** — one generated value, used everywhere you reference it.
 
 ### Logical provider vs. physical provider
 
 | Provider | Type | Creates on disk / cloud? |
 | --- | --- | --- |
-| **`local`** | Physical / OS-level | **Yes** — writes `root/pet.txt` |
-| **`random`** | Logical | **No** — generates a value; result lives in **state** and terminal output |
+| **`local`** | Physical / OS-level | **Yes** — writes `root/<pet-id>.txt` using the `id` value |
+| **`random`** | Logical | **No file of its own** — generates `id`; other resources **reference** it |
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
@@ -211,16 +300,19 @@ sequenceDiagram
     autonumber
     actor You
     participant TF as Terraform CLI
-    participant Local as local provider
     participant Random as random provider
+    participant Local as local provider
     participant FS as Filesystem
 
     You->>TF: terraform apply
-    TF->>Local: Refresh local_file.pet
-    Local->>FS: Check root/pet.txt — exists, no change
     TF->>Random: Create random_pet.my_pet
     Random-->>TF: id = dog-faithful-wolf
-    TF-->>You: 1 added, 0 changed, 0 destroyed
+    TF->>Local: Create local_file.pet
+    Note over Local: filename = root/dog-faithful-wolf.txt
+    Note over Local: content uses random_pet.my_pet.id
+    Local->>FS: Write file to disk
+    FS-->>TF: File created
+    TF-->>You: Apply complete
 ```
 
 ---
@@ -229,17 +321,19 @@ sequenceDiagram
 
 In your configuration directory:
 
-1. Add the `random_pet.my_pet` block to `main.tf`.
+1. Replace `main.tf` with the full example that references `random_pet.my_pet.id` in both `filename` and `content`.
 2. Run `terraform init` — confirm `local` is reused and `random` is installed.
-3. Run `terraform plan` — confirm only `random_pet.my_pet` shows `+ create`.
-4. Run `terraform apply` — note the `id` attribute in the output.
-5. Run `terraform plan` again — both resources should show **no changes**.
+3. Run `terraform plan` — confirm `random_pet.my_pet` is created and `local_file.pet` is created or replaced.
+4. Run `terraform apply` — note the `id` in the apply output.
+5. Open the generated file under `root/` — confirm the pet name appears in the filename and file body.
+6. Run `terraform show` — locate `random_pet.my_pet.id` and verify it matches the file on disk.
+7. Run `terraform plan` again — both resources should show **no changes**.
 
 ---
 
 ### Topic Summary: Multiple Providers
 
-A single Terraform configuration can use **multiple providers** at once. Each resource type prefix (`local_`, `random_`, `aws_`) tells Terraform which provider plugin to use. Adding a resource from a **new** provider requires running **`terraform init` again** to download that plugin — existing providers are reused. In this lesson, `local_file.pet` stays unchanged while `random_pet.my_pet` is created. The `random` provider is **logical** — it generates values stored in state rather than provisioning physical infrastructure.
+A single Terraform configuration can use **multiple providers** at once. The `random_pet` resource generates an **`id`** attribute (e.g., `dog-faithful-wolf`) that you **reference** in other resources using `random_pet.my_pet.id` — for example in `local_file` filename and content. Adding a new provider requires **`terraform init` again**; existing plugins are reused. The `random` provider is **logical** (no physical resource); the `local` provider writes the generated name to disk.
 
 ### Knowledge Check Q&A
 
@@ -261,7 +355,19 @@ A single Terraform configuration can use **multiple providers** at once. Each re
 
 **Q: After adding `random_pet` to an already-applied `local_file.pet`, what will `terraform plan` show?**
 
-**A:** `local_file.pet` — **no changes**. `random_pet.my_pet` — **`+ create`**.
+**A:** `random_pet.my_pet` — **`+ create`**. `local_file.pet` — likely **update or replace** if you changed `filename`/`content` to use `${random_pet.my_pet.id}` instead of static values.
+
+**Q: How do you use the `id` from `random_pet` in another resource?**
+
+**A:** Reference it with **`random_pet.my_pet.id`** inside any argument that accepts an expression, e.g. `content = "My pet is called ${random_pet.my_pet.id}"` or `filename = "root/${random_pet.my_pet.id}.txt"`. Terraform creates `random_pet` first, then passes the `id` value into `local_file`.
+
+**Q: What does `random_pet.my_pet.id` contain after apply?**
+
+**A:** The **generated pet name** string — e.g., `dog-faithful-wolf` — built from your `prefix`, `separator`, and `length` arguments plus random words.
+
+**Q: How can you verify the `id` value after apply?**
+
+**A:** Three ways: read the **`[id=...]`** line in the `terraform apply` output; run **`terraform show`** and inspect `random_pet.my_pet`; or open the file written by `local_file` if you referenced `id` in `content` or `filename`.
 
 **Q: What is a "logical" provider like `random`?**
 
