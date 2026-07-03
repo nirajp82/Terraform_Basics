@@ -15,7 +15,7 @@ Follow this workflow every time.
 ### 1. Gather context
 
 - Read the transcript fully.
-- Identify the **module folder** (e.g., `02_Intro_IAC`, `03_GettingStarted`) and **next file number** in that folder.
+- Identify the **module folder** (e.g., `02_Intro_IAC`, `03_GettingStarted`, `04_Core_Terraform_Basics`, `05_Variable_Block`) and **next file number** in that folder.
 - Skim 1–2 existing lesson files in the same module for tone and structure.
 - Note any **images, diagrams, or demo commands** mentioned in the transcript.
 
@@ -27,7 +27,7 @@ Use numbered folders and files:
 <ModuleFolder>/<NN>_<Topic_Name>.md
 ```
 
-Examples: `03_GettingStarted/03_Variables.md`, `02_Intro_IAC/04_State.md`
+Examples: `05_Variable_Block/01_Input_Variables.md`, `03_GettingStarted/02_HCL_Basics.md`, `02_Intro_IAC/04_State.md`
 
 - Use `NN` as the next sequential number in that folder.
 - Use `PascalCase` or `Snake_Case` for the topic segment (match the folder’s existing style).
