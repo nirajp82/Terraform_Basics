@@ -2,8 +2,6 @@
 
 This document explains what a Terraform **configuration directory** is, how Terraform treats multiple `.tf` files inside it, and the standard file naming conventions used to organize infrastructure code.
 
-> **Diagrams:** All visuals use **Mermaid** styled for dark-mode preview. Install *Markdown Preview Mermaid Support* in Cursor/VS Code, or view on GitHub.
-
 ---
 
 ## 1. What Is a Configuration Directory?

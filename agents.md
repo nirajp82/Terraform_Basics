@@ -66,7 +66,7 @@ Within sections, use:
 | Blockquotes (`>`) | Golden rules, important notes, warnings |
 | Code fences | HCL, bash, PowerShell, diff output — always with a language tag |
 | Images | `<img ... src="URL" />` when the user supplies URLs or they appear in prior lessons |
-| Mermaid diagrams | Use for workflows, sequences, and architecture — see **Mermaid color palette** below |
+| Mermaid diagrams | Use for workflows, sequences, and architecture — see **Mermaid color palette** below. Do **not** add editor/preview setup notes to lesson files. |
 
 ### Mermaid color palette (dark-mode first)
 

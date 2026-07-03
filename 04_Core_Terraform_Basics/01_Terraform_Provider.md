@@ -2,8 +2,6 @@
 
 This document walks through the full journey of a provider plugin—from the code you write in a `.tf` file, to the download from the Terraform Registry, to the folder on your machine where the binary is stored. We use the **`local_file`** example end to end so every step is concrete.
 
-> **Diagrams:** All visuals use **Mermaid** styled for dark-mode preview. Install *Markdown Preview Mermaid Support* in Cursor/VS Code, or view on GitHub.
-
 ---
 
 ## 1. Starting Point: Your Configuration File
