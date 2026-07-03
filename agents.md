@@ -145,6 +145,7 @@ Do **not** use red tones except for explicit warning nodes (e.g. "will FAIL").
 ### Consistency with existing lessons
 
 - Match terminology already used in the repo: **desired state**, **current state**, **drift**, **Provider**, **Resource**, **State**, **Data Source**, **Import**.
+- Use **industry-standard layout** in examples: `main.tf`, `variables.tf`, `outputs.tf`, `providers.tf` inside a generic project directory (e.g. `my-terraform-project/`). Do **not** compare "course vs lab" paths or use dual-column tables for different environments.
 - Where the course uses the **Okta → CyberArk migration** analogy, reuse it for identity/IaC concepts — but only when the transcript topic supports it.
 - Keep the professional, course-note tone: direct, educational, no casual slang.
 
