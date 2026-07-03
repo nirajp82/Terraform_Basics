@@ -135,29 +135,127 @@ flowchart TD
     style EXEC fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
 
-### How much memory does the merged configuration use?
+### How much memory does Terraform use at `plan` and `apply`?
 
-Terraform does **not** execute `.tf` files one at a time from disk. It **reads all of them, parses the HCL, and holds the combined result in RAM** as a single configuration object before planning or applying.
+Parsing `.tf` files into a merged configuration uses **very little memory** — even many files are typically only a few MB in RAM. That is **not** what makes large migrations expensive.
 
-Memory usage depends on **how large and complex** that merged configuration is:
+What actually drives memory, time, and disk during `terraform plan` and `terraform apply` is **how many resources Terraform is managing** — every user, group, app, or object tracked in **state** and compared during the plan.
 
-| Project size | Typical `.tf` files on disk | Config in RAM (approx.) | Full `terraform` process (approx.) |
-| --- | --- | --- | --- |
-| **Lab / learning** (2–5 resources, 1–3 files) | A few KB | **< 1 MB** | **50–150 MB** (includes provider plugins) |
-| **Small team project** (50–100 resources) | Tens to hundreds of KB | **1–10 MB** | **100–300 MB** |
-| **Large enterprise** (1000+ resources, many modules) | Several MB | **50–500+ MB** | **500 MB – 2+ GB** |
+#### Small lab vs. large migration
 
-**What drives memory up:**
-* More **resource blocks** and **data sources**
-* More **variables**, **outputs**, and **expressions**
-* More **child modules** (each module config is also loaded into memory)
-* Larger **provider** plugins loaded during `init`
+| Scenario | Resources managed | What Terraform holds in memory during plan/apply |
+| --- | --- | --- |
+| **Lab** (`main.tf` + `cat.tf`) | 2 `local_file` resources | Tiny — state and plan graph are negligible |
+| **Okta → CyberArk migration** | 3 million users in Okta (source), 2 million `cyberark_user` in CyberArk (target) | **Massive** — state must track millions of resource IDs, attributes, and dependencies |
 
-**What does *not* significantly affect config memory:**
-* Splitting the same resources across 1 file vs. 10 files — the merged result is identical, so memory is effectively the same
-* The size of `terraform.tfstate` on disk (state is loaded separately and can add its own memory cost)
+#### Okta → CyberArk example
 
-For our `main.tf` + `cat.tf` lab example with two `local_file` resources, the merged configuration in memory is **tiny** — far less than 1 MB. Most of the RAM you see used by the `terraform` process goes to the **provider binary** and runtime, not to parsing two small `.tf` files.
+Imagine an identity migration where:
+
+* **Okta** has **3 million users** (source data — read via API or data sources)
+* **CyberArk** already has **2 million users** Terraform manages (target — `cyberark_user` resources in state)
+* You run `terraform apply` to sync the remaining users
+
+On that `apply`, Terraform must:
+
+1. **Load state** — millions of `cyberark_user` entries with API IDs, emails, group mappings
+2. **Build a plan** — compare every desired user in `.tf` against every live user in CyberArk
+3. **Execute changes** — API calls to create/update users that are missing or drifted
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    CODE[".tf files — merged config in RAM — small"]
+    STATE["terraform.tfstate — 2M cyberark_user entries — HUGE"]
+    API["CyberArk API — 2M live users to compare — HUGE"]
+    CODE --> PLAN["terraform plan"]
+    STATE --> PLAN
+    API --> PLAN
+    PLAN --> APPLY["terraform apply — millions of API calls"]
+
+    style CODE fill:#14532d,stroke:#4ade80,color:#ffffff
+    style STATE fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style API fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style PLAN fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style APPLY fill:#374151,stroke:#9ca3af,color:#ffffff
+```
+
+| What | Grows with… | Okta → CyberArk at millions of users |
+| --- | --- | --- |
+| **Merged `.tf` config in RAM** | Number/size of `.tf` files | Small — even generated files parse quickly |
+| **State file (`terraform.tfstate`)** | Every resource Terraform manages | **GB-scale** — one entry per `cyberark_user` |
+| **Plan/apply memory** | Resources in state + API refresh | **GB-scale RAM**, long runtimes, often needs remote state + parallel limits |
+| **Number of `.tf` files** | File count only | **Does not matter** if total resource count is the same |
+
+> **Key takeaway:** Two `.tf` files with 2 resources vs. one `.tf` file with 2 resources — same memory. But **2 million `cyberark_user` resources in state** vs. **2 `local_file` resources** — completely different scale. Enterprise migrations use techniques like **batching**, **remote state**, **`-target`**, and **splitting workspaces** precisely because of this.
+
+---
+
+### Subdirectories and folders outside the configuration directory
+
+#### Can you put `.tf` files in a subdirectory?
+
+**Not as part of the root configuration automatically.** Terraform does **not** scan subfolders for extra `.tf` files to merge into the root module.
+
+```text
+my-terraform-project/
+├── main.tf                    ← LOADED (root module)
+└── users/
+    └── cyberark_users.tf      ← NOT loaded automatically
+```
+
+To use code in a subdirectory, you must declare a **child module**:
+
+```hcl
+# main.tf
+module "users" {
+  source = "./users"           ← tells Terraform to load ./users/ as a separate module
+}
+```
+
+Terraform then loads `users/` as its **own** configuration scope — not merged flat into root.
+
+#### Can you run Terraform from a parent folder or include a sibling directory?
+
+**No.** Terraform only uses the directory where you run the command.
+
+```text
+projects/
+├── okta-export/               ← sibling folder — NOT loaded
+│   └── users.tf
+└── cyberark-migration/        ← configuration directory — run commands HERE
+    ├── main.tf
+    └── modules/
+        └── users/
+            └── main.tf        ← loaded only via module "users" { source = "./modules/users" }
+```
+
+| Pattern | Allowed? | How it works |
+| --- | --- | --- |
+| `.tf` files in **root config directory** | **Yes** | Auto-merged into one configuration |
+| `.tf` files in **subdirectory** without `module` block | **No** | Ignored by root module |
+| `.tf` files in **subdirectory** with `module` block | **Yes** | Loaded as a **child module** (separate scope) |
+| `.tf` files in **parent or sibling** folder | **No** | Never discovered — wrong working directory |
+| `module` source pointing to **another repo/path** | **Yes** | `source = "../other-project"` or `source = "git::https://..."` — explicit only |
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    ROOT["Root config directory"]
+    ROOT --> FLAT["*.tf in root — auto-merged"]
+    ROOT --> MOD["module block — source = ./subfolder"]
+    MOD --> CHILD["Subfolder loaded as child module"]
+    SIBLING["Sibling directory"] --> X["Not loaded"]
+    PARENT["Parent directory"] --> X
+
+    style ROOT fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style FLAT fill:#14532d,stroke:#4ade80,color:#ffffff
+    style MOD fill:#374151,stroke:#9ca3af,color:#ffffff
+    style CHILD fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style SIBLING fill:#374151,stroke:#9ca3af,color:#ffffff
+    style PARENT fill:#374151,stroke:#9ca3af,color:#ffffff
+    style X fill:#713f12,stroke:#fbbf24,color:#ffffff
+```
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
@@ -304,7 +402,7 @@ Step 5 proves that **file layout does not change infrastructure** — only the r
 
 ### Topic Summary: Configuration Directory
 
-A Terraform **configuration directory** is the root folder where you run all Terraform commands. Terraform loads **only** the `*.tf` files **directly inside that folder**, merges them into **one in-memory configuration**, then runs `plan` or `apply`. Subfolders are not scanned unless referenced as modules. For small labs, config memory is under 1 MB; the full Terraform process typically uses 50–150 MB mostly for provider plugins. Industry practice uses **`main.tf`** plus `variables.tf`, `outputs.tf`, and `providers.tf` for organization.
+A Terraform **configuration directory** is the root folder where you run all Terraform commands. Terraform loads **only** `*.tf` files **directly inside that folder** and merges them in memory. Subdirectories require an explicit **`module` block**; parent and sibling folders are never loaded. Memory at `plan`/`apply` is driven by **how many resources are in state** — not by file count — so migrations managing millions of users (e.g., Okta → CyberArk) are vastly more expensive than a two-file lab.
 
 ### Knowledge Check Q&A
 
@@ -316,9 +414,21 @@ A Terraform **configuration directory** is the root folder where you run all Ter
 
 **A:** It loads from the **current working directory** (the configuration directory) only. Files like `main.tf`, `cat.tf`, and `variables.tf` in that folder are merged together. It does **not** load `.tf` files from subfolders unless you reference them with a `module` block. It does **not** load `terraform.tfstate`, `.terraform/`, `.tfvars`, or non-`.tf` files as configuration.
 
-**Q: How much memory does the merged configuration use?**
+**Q: How much memory does Terraform use during `plan` and `apply`?**
 
-**A:** It depends on project size. For a small lab (2 resources, 2 `.tf` files), the merged config in RAM is **less than 1 MB**. The full `terraform` process typically uses **50–150 MB** because provider plugins and runtime overhead use most of the memory — not the `.tf` files themselves. Large projects with thousands of resources can use **hundreds of MB to gigabytes**. Splitting the same resources across 1 file or 10 files does **not** meaningfully change memory — the merged result is identical.
+**A:** Two different things matter. **Parsing `.tf` files** into a merged configuration uses very little RAM — a few MB even for many files. What actually drives memory at scale is **how many resources Terraform manages in state**. In an Okta → CyberArk migration with **3 million Okta users** (source) and **2 million `cyberark_user` resources** in CyberArk (target), Terraform must load millions of state entries and compare each against the live API during `plan` — that can reach **gigabytes of RAM**, multi-hour runtimes, and **GB-sized state files**. A lab with 2 `local_file` resources is trivial by comparison. Splitting resources across 1 file vs. 10 files does not change this — **resource count in state** does.
+
+**Q: Can you put `.tf` files in a subdirectory and have Terraform load them automatically?**
+
+**A:** **No.** Terraform only auto-merges `*.tf` files **directly inside** the configuration directory. A file at `users/cyberark_users.tf` is **ignored** unless you add a `module` block such as `module "users" { source = "./users" }`, which loads that subfolder as a **child module** — not as a flat merge into root.
+
+**Q: Can Terraform load `.tf` files from a parent folder or a sibling directory?**
+
+**A:** **No.** Terraform only reads configuration from the **directory where you run the command**. A sibling folder like `okta-export/users.tf` is never discovered. To use code from another path, you must explicitly reference it via a `module` block with `source = "../other-folder"` or a Git/registry URL.
+
+**Q: What is the difference between a merged `.tf` file and a child module subdirectory?**
+
+**A:** All `*.tf` files in the **root directory** are **merged into one configuration** — they share the same scope. A **subdirectory loaded via `module`** is a **separate module** with its own scope, inputs (`variables`), and outputs. Root `main.tf` and `cat.tf` merge together; `./modules/users/` only loads when `module "users" { source = "./modules/users" }` is declared.
 
 **Q: If you add `cat.tf` to the directory, does Terraform automatically use it?**
 
