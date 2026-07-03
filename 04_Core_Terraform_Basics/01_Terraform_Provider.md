@@ -2,7 +2,7 @@
 
 This document walks through the full journey of a provider plugin—from the code you write in a `.tf` file, to the download from the Terraform Registry, to the folder on your machine where the binary is stored. We use the **`local_file`** example end to end so every step is concrete.
 
-> **Diagrams:** All visuals in this document use **Mermaid**. To render them in Cursor/VS Code, install the *Markdown Preview Mermaid Support* extension, or view this file on GitHub.
+> **Diagrams:** All visuals use **Mermaid** with a dark-mode-first color palette. Install *Markdown Preview Mermaid Support* in Cursor/VS Code, or view on GitHub.
 
 ---
 
@@ -25,14 +25,17 @@ resource "local_file" "pet" {
 ```
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e', 'clusterBkg': '#161b22', 'clusterBorder': '#30363d'}}}%%
 flowchart TD
     A["main.tf written"] --> B["No provider plugin on disk"]
     B --> C["No /root/pets.txt yet"]
     C --> D["plan / apply will FAIL"]
     D --> E["Must run terraform init first"]
 
-    style D fill:#fde8e8,stroke:#c62828
-    style E fill:#e8f5e9,stroke:#2e7d32
+    classDef error fill:#4a2020,stroke:#f87171,color:#e6edf3
+    classDef success fill:#2d4a3e,stroke:#4ade80,color:#e6edf3
+    class D error
+    class E success
 ```
 
 At this point you have **only** written configuration code. Terraform does not yet know how to talk to the `local` provider.
@@ -49,6 +52,7 @@ Terraform reads your resource block and extracts two critical pieces of informat
 | Resource name | `pet` | Your logical label for this resource (not used during init) |
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e'}}}%%
 flowchart LR
     CODE["resource local_file pet"] --> SPLIT["Split resource type"]
     SPLIT --> PROV["Provider = local"]
@@ -56,7 +60,8 @@ flowchart LR
     SPLIT --> NAME["Resource name = pet"]
     PROV --> NEED["Need hashicorp/local plugin"]
 
-    style NEED fill:#e3f2fd,stroke:#1565c0
+    classDef info fill:#1e3a5f,stroke:#60a5fa,color:#e6edf3
+    class NEED info
 ```
 
 > **Rule:** The provider name is always the prefix before the first `_` in the resource type.
@@ -67,6 +72,7 @@ flowchart LR
 ## 3. What Happens Internally During `terraform init`
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e'}}}%%
 flowchart TD
     START(["You run terraform init"]) --> S1["Step 1: Scan all .tf files"]
     S1 --> S2["Step 2: Detect local_file needs local provider"]
@@ -79,10 +85,12 @@ flowchart TD
     S4 -.->|HTTPS| REG["registry.terraform.io"]
     S6 -.->|writes| DISK[".terraform/providers/.../terraform-provider-local"]
 
-    style START fill:#e8f5e9,stroke:#2e7d32
-    style DONE fill:#e8f5e9,stroke:#2e7d32
-    style REG fill:#e3f2fd,stroke:#1565c0
-    style DISK fill:#fff3e0,stroke:#ef6c00
+    classDef success fill:#2d4a3e,stroke:#4ade80,color:#e6edf3
+    classDef info fill:#1e3a5f,stroke:#60a5fa,color:#e6edf3
+    classDef warn fill:#4a3520,stroke:#fb923c,color:#e6edf3
+    class START,DONE success
+    class REG info
+    class DISK warn
 ```
 
 ### The journey in plain English
@@ -103,6 +111,7 @@ flowchart TD
 ## 4. Where Terraform Downloads From
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e', 'clusterBkg': '#161b22', 'clusterBorder': '#30363d'}}}%%
 flowchart TB
     subgraph MACHINE["Your Machine — /root/terraform-projects/HCL/"]
         TF["main.tf"]
@@ -124,8 +133,10 @@ flowchart TB
     REQ -->|HTTPS download| REGISTRY
     REGISTRY -->|signed binary v2.0.0| SAVE["Save to .terraform/providers/"]
 
-    style REGISTRY fill:#e3f2fd,stroke:#1565c0
-    style SAVE fill:#fff3e0,stroke:#ef6c00
+    classDef info fill:#1e3a5f,stroke:#60a5fa,color:#e6edf3
+    classDef warn fill:#4a3520,stroke:#fb923c,color:#e6edf3
+    class REGISTRY info
+    class SAVE warn
 ```
 
 ### The source address — how Terraform knows what to download
@@ -133,6 +144,7 @@ flowchart TB
 The identifier `hashicorp/local` (shown in init output) is called the **source address**.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e'}}}%%
 flowchart LR
     FULL["registry.terraform.io / hashicorp / local"]
     SHORT["hashicorp / local"]
@@ -147,6 +159,9 @@ flowchart LR
     SHORT --> N2["namespace — hashicorp"]
     SHORT --> T2["type — local"]
     SHORT --> DEF["hostname implied = registry.terraform.io"]
+
+    classDef info fill:#1e3a5f,stroke:#60a5fa,color:#e6edf3
+    class FULL,SHORT info
 ```
 
 | Segment | In `hashicorp/local` | Meaning |
@@ -160,6 +175,7 @@ flowchart LR
 **Yes.** `registry.terraform.io` is only the **default** registry — not the only one Terraform can use.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e'}}}%%
 flowchart TD
     ADDR["Provider source address"] --> Q{"Hostname included?"}
     Q -->|No — e.g. hashicorp/local| PUB["registry.terraform.io — Public Registry"]
@@ -173,8 +189,10 @@ flowchart TD
     TFE --> PATH2[".terraform/providers/app.terraform.io/..."]
     SELF --> PATH3[".terraform/providers/terraform.mycompany.com/..."]
 
-    style PUB fill:#e8f5e9,stroke:#2e7d32
-    style CUSTOM fill:#fff3e0,stroke:#ef6c00
+    classDef success fill:#2d4a3e,stroke:#4ade80,color:#e6edf3
+    classDef warn fill:#4a3520,stroke:#fb923c,color:#e6edf3
+    class PUB success
+    class CUSTOM,TFE,SELF,MIRROR warn
 ```
 
 | Registry | Example hostname | Typical use |
@@ -198,6 +216,7 @@ terraform.mycompany.com/acme/internal        → private company registry (not H
 ## 5. Where Terraform Puts the Downloaded Plugin
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e', 'clusterBkg': '#161b22', 'clusterBorder': '#30363d'}}}%%
 flowchart TD
     subgraph BEFORE["BEFORE terraform init"]
         B1["/root/terraform-projects/HCL/"]
@@ -228,9 +247,12 @@ flowchart TD
 
     BEFORE -->|"terraform init"| AFTER
 
-    style BEFORE fill:#f5f5f5,stroke:#9e9e9e
-    style AFTER fill:#e8f5e9,stroke:#2e7d32
-    style A9 fill:#fff3e0,stroke:#ef6c00
+    classDef neutral fill:#374151,stroke:#9ca3af,color:#e6edf3
+    classDef success fill:#2d4a3e,stroke:#4ade80,color:#e6edf3
+    classDef warn fill:#4a3520,stroke:#fb923c,color:#e6edf3
+    class BEFORE neutral
+    class AFTER success
+    class A9 warn
 ```
 
 ### What each path segment means
@@ -269,6 +291,7 @@ Terraform has been successfully initialized!
 ## 6. Full End-to-End: From Code to File on Disk
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'actorBkg': '#1e3a5f', 'actorTextColor': '#e6edf3', 'actorBorder': '#60a5fa', 'signalColor': '#8b949e', 'noteBkgColor': '#161b22', 'noteTextColor': '#e6edf3'}}}%%
 sequenceDiagram
     autonumber
     actor You
@@ -277,7 +300,7 @@ sequenceDiagram
     participant Plg as local Provider Plugin
     participant FS as Filesystem
 
-    rect rgb(232, 245, 233)
+    rect rgb(45, 74, 62)
     Note over You,FS: Phase 1 — terraform init (setup only)
     You->>TF: terraform init
     TF->>TF: Read main.tf — needs local provider
@@ -287,7 +310,7 @@ sequenceDiagram
     TF-->>You: Successfully initialized
     end
 
-    rect rgb(227, 242, 253)
+    rect rgb(30, 58, 95)
     Note over You,FS: Phase 2 — terraform plan (preview only)
     You->>TF: terraform plan
     TF->>Plg: Plan local_file.pet
@@ -295,7 +318,7 @@ sequenceDiagram
     TF-->>You: Preview diff — no changes made
     end
 
-    rect rgb(255, 243, 224)
+    rect rgb(74, 53, 32)
     Note over You,FS: Phase 3 — terraform apply (creates resource)
     You->>TF: terraform apply
     TF->>Plg: Create local_file.pet
@@ -321,6 +344,7 @@ The **provider plugin** is the bridge between your HCL code and the real world. 
 ## 7. Three Tiers of Providers in the Registry
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e'}}}%%
 flowchart TD
     REG["registry.terraform.io"] --> OFF["Official — maintained by HashiCorp"]
     REG --> PART["Partner — maintained by vendor partners"]
@@ -330,9 +354,12 @@ flowchart TD
     PART --> E2["DigitalOcean, Heroku, F5 BIG-IP"]
     COMM --> E3["Niche and emerging platform providers"]
 
-    style OFF fill:#e8f5e9,stroke:#2e7d32
-    style PART fill:#e3f2fd,stroke:#1565c0
-    style COMM fill:#fff3e0,stroke:#ef6c00
+    classDef success fill:#2d4a3e,stroke:#4ade80,color:#e6edf3
+    classDef info fill:#1e3a5f,stroke:#60a5fa,color:#e6edf3
+    classDef warn fill:#4a3520,stroke:#fb923c,color:#e6edf3
+    class OFF,E1 success
+    class REG,PART,E2 info
+    class COMM,E3 warn
 ```
 
 The **`local`** provider used in our example is an **official** HashiCorp provider.

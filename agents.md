@@ -66,6 +66,35 @@ Within sections, use:
 | Blockquotes (`>`) | Golden rules, important notes, warnings |
 | Code fences | HCL, bash, PowerShell, diff output — always with a language tag |
 | Images | `<img ... src="URL" />` when the user supplies URLs or they appear in prior lessons |
+| Mermaid diagrams | Use for workflows, sequences, and architecture — see **Mermaid color palette** below |
+
+### Mermaid color palette (dark-mode first)
+
+Prefer colors that read well in **dark mode** (GitHub dark, Cursor/VS Code dark preview) while remaining usable in light mode. Start each diagram with a dark `themeVariables` init block, then apply semantic `classDef` styles for emphasis nodes.
+
+**Init block (paste at top of every Mermaid diagram):**
+
+```text
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'background': 'transparent', 'primaryTextColor': '#e6edf3', 'lineColor': '#8b949e', 'clusterBkg': '#161b22', 'clusterBorder': '#30363d', 'titleColor': '#e6edf3'}}}%%
+```
+
+**Semantic node classes:**
+
+| Class | Use for | fill | stroke | text |
+| --- | --- | --- | --- | --- |
+| `success` | Ready, complete, official/public | `#2d4a3e` | `#4ade80` | `#e6edf3` |
+| `info` | Registry, CLI, informational | `#1e3a5f` | `#60a5fa` | `#e6edf3` |
+| `warn` | Download, binary, custom/private | `#4a3520` | `#fb923c` | `#e6edf3` |
+| `error` | Failures, blockers | `#4a2020` | `#f87171` | `#e6edf3` |
+| `neutral` | Before state, inactive | `#374151` | `#9ca3af` | `#e6edf3` |
+
+**Sequence diagram phase backgrounds:** `rgb(45, 74, 62)` init · `rgb(30, 58, 95)` plan · `rgb(74, 53, 32)` apply
+
+```markdown
+classDef success fill:#2d4a3e,stroke:#4ade80,color:#e6edf3
+classDef info fill:#1e3a5f,stroke:#60a5fa,color:#e6edf3
+class A,B success
+```
 
 ### C. Topic Summary (required, near the end)
 
