@@ -11,7 +11,7 @@ This document walks through the full journey of a provider plugin—from the cod
 Imagine you are in this project directory:
 
 ```text
-/root/terraform-projects/HCL/
+03_GettingStarted/02_HCL_Basics_Lab/terraform-projects/HCL/
 └── main.tf
 ```
 
@@ -19,8 +19,8 @@ Inside `main.tf` you have written:
 
 ```hcl
 resource "local_file" "pet" {
-  filename = "/root/pets.txt"
-  content  = "We love pets."
+  filename = "root/pet.txt"
+  content  = "I love pet!"
 }
 ```
 
@@ -28,7 +28,7 @@ resource "local_file" "pet" {
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     A["main.tf written"] --> B["No provider plugin on disk"]
-    B --> C["No /root/pets.txt yet"]
+    B --> C["No root/pet.txt yet"]
     C --> D["plan / apply will FAIL"]
     D --> E["Must run terraform init first"]
 
@@ -83,7 +83,7 @@ flowchart TD
     S1 --> S2["Step 2: Detect local_file needs local provider"]
     S2 --> S3["Step 3: Resolve source address hashicorp/local"]
     S3 --> S4["Step 4: Contact registry.terraform.io"]
-    S4 --> S5["Step 5: Download provider binary v2.0.0"]
+    S4 --> S5["Step 5: Download provider binary v2.9.0"]
     S5 --> S6["Step 6: Save to .terraform/providers/"]
     S6 --> DONE(["Ready for plan and apply"])
 
@@ -110,7 +110,7 @@ flowchart TD
 | **2. Detect** | Finds `local_file` → needs the **`local`** provider | No |
 | **3. Resolve address** | Builds source address: `hashicorp/local` | No |
 | **4. Contact registry** | Connects to `registry.terraform.io` over the internet | No |
-| **5. Download** | Fetches the compiled provider binary (e.g., `v2.0.0`) | No |
+| **5. Download** | Fetches the compiled provider binary (e.g., `v2.9.0`) | No |
 | **6. Install locally** | Saves the binary into the hidden `.terraform/` folder | No |
 
 > **`terraform init` never creates, changes, or deletes infrastructure.** It only prepares your working directory. You can run it as many times as you want safely.
@@ -122,14 +122,14 @@ flowchart TD
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TB
-    MACH["<div style='white-space:nowrap'>Your Machine: /root/terraform-projects/HCL/</div>"] --> TF["main.tf"]
+    MACH["<div style='white-space:nowrap'>Lab: 03_GettingStarted/02_HCL_Basics_Lab/terraform-projects/HCL/</div>"] --> TF["main.tf"]
     TF --> CLI["Terraform CLI"]
     CLI --> REQ["<div style='white-space:nowrap'>terraform init: Request hashicorp/local</div>"]
     REQ -->|HTTPS download| REG["<div style='white-space:nowrap'>registry.terraform.io — Public Registry</div>"]
     REG --> OFF["Official: local, aws, google"]
     REG --> PART["Partner: DigitalOcean, Heroku, F5"]
     REG --> COMM["Community: contributor providers"]
-    REG -->|signed binary v2.0.0| SAVE["<div style='white-space:nowrap'>Save to .terraform/providers/</div>"]
+    REG -->|signed binary v2.9.0| SAVE["<div style='white-space:nowrap'>Save to .terraform/providers/</div>"]
 
     style MACH fill:#374151,stroke:#9ca3af,color:#ffffff
     style TF fill:#374151,stroke:#9ca3af,color:#ffffff
@@ -229,16 +229,16 @@ terraform.mycompany.com/acme/internal        → private company registry (not H
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
-    B1["<div style='white-space:nowrap'>BEFORE init: /root/terraform-projects/HCL/main.tf only</div>"]
+    B1["<div style='white-space:nowrap'>BEFORE init: .../HCL/main.tf only</div>"]
     B1 -->|"terraform init"| A1["AFTER init: project folder"]
     A1 --> A2["main.tf"]
     A1 --> A3[".terraform/"]
     A3 --> A4["providers/"]
     A4 --> A5["registry.terraform.io/"]
     A5 --> A6["hashicorp/local/"]
-    A6 --> A7["2.0.0/"]
-    A7 --> A8["linux_amd64/"]
-    A8 --> A9["<div style='white-space:nowrap'>terraform-provider-local_v2.0.0</div>"]
+    A6 --> A7["2.9.0/"]
+    A7 --> A8["windows_amd64/"]
+    A8 --> A9["<div style='white-space:nowrap'>terraform-provider-local_v2.9.0_x5.exe</div>"]
 
     style B1 fill:#374151,stroke:#9ca3af,color:#ffffff
     style A1 fill:#14532d,stroke:#4ade80,color:#ffffff
@@ -254,14 +254,29 @@ flowchart TD
 
 ### What each path segment means
 
+After `terraform init`, the provider binary is stored at:
+
+```text
+03_GettingStarted/02_HCL_Basics_Lab/terraform-projects/HCL/
+└── .terraform/
+    └── providers/
+        └── registry.terraform.io/
+            └── hashicorp/
+                └── local/
+                    └── 2.9.0/
+                        └── windows_amd64/
+                            └── terraform-provider-local_v2.9.0_x5.exe
+```
+
 | Path segment | What it is |
 | --- | --- |
 | `.terraform/` | Hidden working directory Terraform creates during init |
 | `providers/` | All downloaded provider binaries live here |
 | `registry.terraform.io/` | Which registry the plugin was downloaded from |
 | `hashicorp/local/` | Namespace + provider type (the source address) |
-| `2.0.0/` | Exact version that was installed |
-| `terraform-provider-local_...` | The actual executable binary Terraform calls at runtime |
+| `2.9.0/` | Exact version that was installed |
+| `windows_amd64/` | OS and CPU architecture for your machine (Windows 64-bit) |
+| `terraform-provider-local_v2.9.0_x5.exe` | The actual executable binary Terraform calls at runtime |
 
 ### Terminal output you will see
 
@@ -279,7 +294,7 @@ Terraform has been successfully initialized!
 | Line in output | What it tells you |
 | --- | --- |
 | `Finding latest version of hashicorp/local` | Terraform queried the registry for the newest compatible version |
-| `Installing hashicorp/local v2.0.0` | Version **2.0.0** of the local provider is being downloaded |
+| `Installing hashicorp/local v2.9.0` | Version **2.9.0** of the local provider is being downloaded |
 | `signed by HashiCorp` | The binary is cryptographically verified — it is authentic |
 | `successfully initialized` | Plugin is on disk; you can now run `plan` and `apply` |
 
@@ -302,7 +317,7 @@ sequenceDiagram
     You->>TF: terraform init
     TF->>TF: Read main.tf
     TF->>Reg: GET hashicorp/local
-    Reg-->>TF: binary v2.0.0
+    Reg-->>TF: binary v2.9.0
     TF->>Plg: Install to .terraform/providers/
     TF-->>You: Initialized
     end
@@ -319,7 +334,7 @@ sequenceDiagram
     Note over You,FS: Phase 3 — terraform apply
     You->>TF: terraform apply
     TF->>Plg: Create local_file.pet
-    Plg->>FS: Write /root/pets.txt
+    Plg->>FS: Write root/pet.txt
     FS-->>Plg: File created
     Plg-->>TF: Success
     TF-->>You: Apply complete
@@ -332,7 +347,7 @@ sequenceDiagram
 | --- | --- | --- |
 | `terraform init` | Downloads the provider plugin (the tool) | No |
 | `terraform plan` | Previews what will change | No |
-| `terraform apply` | Provider writes `/root/pets.txt` | **Yes** |
+| `terraform apply` | Provider writes `root/pet.txt` | **Yes** |
 
 The **provider plugin** is the bridge between your HCL code and the real world. Without it (before init), Terraform has configuration but no ability to act.
 
@@ -365,7 +380,7 @@ The **`local`** provider used in our example is an **official** HashiCorp provid
 
 ## 8. Provider Versioning (Preview)
 
-By default, `terraform init` installs the **latest available version** of a provider (e.g., `v2.0.0`).
+By default, `terraform init` installs the **latest available version** of a provider (e.g., `v2.9.0` on this lab).
 
 Providers are updated regularly to add features and fix bugs. New versions can sometimes introduce **breaking changes** to your existing `.tf` code.
 
@@ -379,7 +394,7 @@ When you write `resource "local_file" "pet"`, Terraform detects that it needs th
 
 ### Knowledge Check Q&A
 
-**Q: You have written `main.tf` but have not run any commands yet. Can Terraform create `/root/pets.txt`?**
+**Q: You have written `main.tf` but have not run any commands yet. Can Terraform create `root/pet.txt`?**
 
 **A:** No. Without running `terraform init` first, the `local` provider plugin is not installed. Terraform cannot execute any resource until init downloads the required provider.
 
@@ -389,7 +404,7 @@ When you write `resource "local_file" "pet"`, Terraform detects that it needs th
 
 **Q: After `terraform init`, where is the provider binary stored on your machine?**
 
-**A:** Inside the hidden `.terraform/providers/` directory in your project folder, under a path like `.terraform/providers/registry.terraform.io/hashicorp/local/<version>/<platform>/`.
+**A:** Inside the hidden `.terraform/providers/` directory in your project folder, under a path like `.terraform/providers/registry.terraform.io/hashicorp/local/2.9.0/windows_amd64/terraform-provider-local_v2.9.0_x5.exe`.
 
 **Q: How does Terraform know it needs the `local` provider from the resource block `resource "local_file" "pet"`?**
 
