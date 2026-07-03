@@ -37,6 +37,18 @@ Examples: `03_GettingStarted/03_Variables.md`, `02_Intro_IAC/04_State.md`
 
 Produce a **study guide**, not a verbatim transcript. Remove filler speech, repetition, and off-topic asides. Keep all technical substance.
 
+### 4. Commit and push to Git (always)
+
+After the lesson file is complete, **always commit and push** to the remote repository — do not leave new lessons as local-only files.
+
+1. `git add` the new or updated lesson file (and `agents.md` if changed).
+2. Commit with a concise message describing the lesson topic.
+3. `git push origin main` (or the branch the user is working on).
+4. Confirm with `git status` that the branch is up to date with `origin/main`.
+
+On Windows, if git reports dubious ownership, use:
+`git -c safe.directory=C:/Projects/Personal/Terraform_Basics <command>`
+
 ---
 
 ## Required Document Structure
@@ -208,6 +220,7 @@ Before finishing, verify:
 - [ ] `### Knowledge Check Q&A` with 4–8 Q&A pairs
 - [ ] No transcript filler; technical accuracy preserved
 - [ ] Style matches `03_Terraform.md` and `02_HCL_Basics.md`
+- [ ] Changes **committed and pushed** to `origin/main` (or active branch)
 
 ---
 
@@ -237,4 +250,4 @@ Recap paragraph
 Q/A pairs
 ```
 
-When the user says *“here is the transcript”*, apply this guide and write the lesson file without asking for permission to create it — unless the target folder or filename is ambiguous, in which case propose the path first.
+When the user says *“here is the transcript”*, apply this guide, write the lesson file, then **commit and push** — unless the target folder or filename is ambiguous, in which case propose the path first.
