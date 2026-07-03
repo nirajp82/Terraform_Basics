@@ -278,6 +278,8 @@ After `terraform init`, the provider binary is stored at:
 | `windows_amd64/` | OS and CPU architecture for your machine (Windows 64-bit) |
 | `terraform-provider-local_v2.9.0_x5.exe` | The actual executable binary Terraform calls at runtime |
 
+- https://github.com/nirajp82/Terraform_Basics/tree/main/03_GettingStarted/02_HCL_Basics_Lab/terraform-projects/HCL
+  
 ### Terminal output you will see
 
 ```text
