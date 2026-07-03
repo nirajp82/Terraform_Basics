@@ -85,6 +85,36 @@ variable "length" {
 
 > **Naming tip:** If a variable replaces the `content` argument, naming it `content` keeps the configuration easy to read.
 
+### Variable naming rules and conventions
+
+**Terraform rules (required):**
+
+| Rule | Valid | Invalid |
+| --- | --- | --- |
+| Must start with a **letter** or **underscore** | `content`, `_private` | `1content`, `-content` |
+| May contain letters, digits, underscores, dashes | `pet_name`, `instance-type` | `pet name` (spaces) |
+| Must be **unique** within the module | One `variable "content"` | Two variables with same name |
+| Case-sensitive | `content` ≠ `Content` | — |
+
+**Industry conventions (recommended):**
+
+| Convention | Example | Why |
+| --- | --- | --- |
+| **snake_case** | `instance_type`, `file_content` | Standard in Terraform community and registry modules |
+| **Descriptive names** | `ami_id`, not `a` | Readable in `var.ami_id` and `.tfvars` |
+| **Match purpose** | `prefix` for pet prefix | Easier to maintain than `var.x` |
+| **Avoid reserved/confusing names** | Don't name a variable `resource` or `provider` | Reduces confusion with block types |
+
+```hcl
+# Good
+variable "file_content" { default = "Hello" }
+variable "instance_type" { default = "t2.micro" }
+
+# Avoid
+variable "x" { default = "Hello" }
+variable "Content" { default = "Hello" }   # inconsistent casing vs var.content
+```
+
 Terraform merges `variables.tf` and `main.tf` into **one configuration** — no import or link statement is required.
 
 ---
@@ -121,6 +151,57 @@ var.content
 | **Variable reference** | **No** | `content = var.content` |
 
 Terraform already knows `var.content` is a string (or number) from the variable definition — wrapping it in `"${var.content}"` is unnecessary for simple references.
+
+### Where can you use `var.` — and where can you not?
+
+This lecture focuses on **argument values**, but variables are expressions — they work anywhere Terraform expects a **value**, not a **label**.
+
+| Location | Can use `var.`? | Example |
+| --- | --- | --- |
+| **Argument values** | **Yes** | `content = var.content` |
+| **String templates** | **Yes** | `filename = "root/${var.filename}"` |
+| **Nested blocks** (e.g., `tags`) | **Yes** | `Name = var.instance_name` |
+| **`count` / `for_each`** (later) | **Yes** | `count = var.instance_count` |
+| **Resource type** (`local_file`) | **No** — must be literal | `resource "local_file"` only |
+| **Resource name** (`pet`, `my_pet`) | **No** — must be literal | `resource "local_file" "pet"` only |
+| **`variable` block name** | **No** — must be literal | `variable "content"` only |
+
+```hcl
+# Valid — variable as argument value
+resource "local_file" "pet" {
+  filename = var.filename
+  content  = var.content
+}
+
+# INVALID — resource name cannot be a variable
+resource "local_file" var.pet_name {   # syntax error
+  content = var.content
+}
+```
+
+**Why resource names must be literal:** Terraform builds the **resource address** (`local_file.pet`) at parse time — before variables are evaluated. The address is how state, references, and `terraform import` identify a resource. It must be a fixed string in code.
+
+**If you need many resources from one template** (e.g., one file per user in a migration), you use **`for_each`** or **`count`** with a variable map or number — covered later. That creates `local_file.user["john"]`, not a dynamic label in the block header.
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    VAR["var.content"]
+    VAR --> ARG["Argument values — YES"]
+    VAR --> STR["Inside strings — YES"]
+    VAR --> TAGS["tags, nested values — YES"]
+    VAR --> RNAME["Resource name label — NO"]
+    VAR --> RTYPE["Resource type — NO"]
+
+    style VAR fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style ARG fill:#14532d,stroke:#4ade80,color:#ffffff
+    style STR fill:#14532d,stroke:#4ade80,color:#ffffff
+    style TAGS fill:#14532d,stroke:#4ade80,color:#ffffff
+    style RNAME fill:#713f12,stroke:#fbbf24,color:#ffffff
+    style RTYPE fill:#713f12,stroke:#fbbf24,color:#ffffff
+```
+
+> **Short answer:** Variables replace **values inside** resource blocks (arguments, tags, expressions). They do **not** replace the **resource name** or **resource type** in the block header.
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
@@ -288,20 +369,141 @@ Do not worry if `aws_instance` arguments are unfamiliar — a dedicated AWS lect
 
 ---
 
-## 7. Other Ways to Set Variable Values (Preview)
+## 7. How `.tfvars` Files Work
 
-This lecture uses **`default`** inside `variable` blocks. Later sections cover:
+A **`.tfvars`** file supplies **variable values** without editing `variables.tf` defaults. It is the standard way to separate **code** from **environment-specific values** (dev, staging, prod).
 
-| Method | When used |
+### Two different file roles
+
+| File | Syntax | Purpose |
+| --- | --- | --- |
+| **`variables.tf`** | `variable "content" { default = "..." }` | **Declares** that a variable exists (+ optional default) |
+| **`terraform.tfvars`** | `content = "Hello from tfvars"` | **Assigns** values to already-declared variables |
+
+```hcl
+# variables.tf — declaration
+variable "content" {
+  default = "I love pet!"
+}
+
+variable "length" {
+  default = 2
+}
+```
+
+```hcl
+# terraform.tfvars — assignment only (no "variable" keyword)
+content = "My favorite pet is Mrs. hiskers"
+length  = 2
+```
+
+`main.tf` is unchanged — still uses `var.content` and `var.length`.
+
+### Auto-loaded vs. explicit `.tfvars` files
+
+| File | Loaded automatically? |
 | --- | --- |
-| **`default` in `variables.tf`** | This lecture — simplest for learning |
-| **`.tfvars` files** | Environment-specific value files |
-| **CLI flags** | `-var="content=Hello"` at apply time |
-| **Environment variables** | `TF_VAR_content=Hello` in CI/CD |
+| **`terraform.tfvars`** | **Yes** — if present in the configuration directory |
+| **`*.auto.tfvars`** (e.g., `dev.auto.tfvars`) | **Yes** — all matching files, alphabetically |
+| **Custom name** (e.g., `prod.tfvars`) | **No** — pass with `-var-file` |
+
+```bash
+terraform plan -var-file="prod.tfvars"
+terraform apply -var-file="prod.tfvars"
+```
+
+```text
+my-terraform-project/
+├── main.tf
+├── variables.tf              ← declares variables
+├── terraform.tfvars          ← auto-loaded values (e.g., dev defaults)
+├── prod.tfvars               ← loaded only with -var-file=prod.tfvars
+└── staging.auto.tfvars       ← auto-loaded
+```
+
+### Value precedence (highest wins)
+
+When the same variable is set in multiple places:
+
+```text
+1. -var flag on CLI              (highest priority)
+2. -var-file=custom.tfvars
+3. terraform.tfvars / *.auto.tfvars
+4. TF_VAR_<name> environment variable
+5. default in variables.tf       (lowest priority)
+```
+
+**Example:**
+
+```hcl
+# variables.tf
+variable "content" { default = "default from variables.tf" }
+```
+
+```hcl
+# terraform.tfvars
+content = "value from terraform.tfvars"
+```
+
+```bash
+terraform apply -var="content=override from CLI"
+# Result: content = "override from CLI"
+```
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    DEF["default in variables.tf"]
+    TFVARS["terraform.tfvars"]
+    AUTO["*.auto.tfvars"]
+    FILE["-var-file=prod.tfvars"]
+    CLI["-var on CLI"]
+    DEF --> TFVARS --> AUTO --> FILE --> CLI
+    CLI --> WIN["Winning value used at plan/apply"]
+
+    style DEF fill:#374151,stroke:#9ca3af,color:#ffffff
+    style TFVARS fill:#374151,stroke:#9ca3af,color:#ffffff
+    style AUTO fill:#374151,stroke:#9ca3af,color:#ffffff
+    style FILE fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style CLI fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style WIN fill:#14532d,stroke:#4ade80,color:#ffffff
+```
+
+### `.tfvars` syntax notes
+
+```hcl
+# Strings — quotes optional for simple values
+content = "Hello"
+prefix  = dog
+
+# Numbers and booleans — no quotes
+length  = 2
+enable_x = true
+
+# Maps and lists — for later
+tags = {
+  Environment = "dev"
+  Team        = "platform"
+}
+```
+
+> **Important:** Never put `variable "content"` blocks inside `.tfvars` — that belongs only in `variables.tf`. `.tfvars` files contain **assignments** (`name = value`), not declarations.
 
 ---
 
-## 8. Hands-On Lab
+## 8. Other Ways to Set Variable Values
+
+| Method | Example | When used |
+| --- | --- | --- |
+| **`default` in `variables.tf`** | `default = "Hello"` | Fallback; learning labs |
+| **`terraform.tfvars`** | `content = "Hello"` | Auto-loaded per project |
+| **`-var-file`** | `-var-file=prod.tfvars` | Per-environment files |
+| **CLI `-var`** | `-var="content=Hello"` | One-off overrides |
+| **Environment variable** | `TF_VAR_content=Hello` | CI/CD pipelines |
+
+---
+
+## 9. Hands-On Lab
 
 In your configuration directory:
 
@@ -311,12 +513,14 @@ In your configuration directory:
 4. Change only `content` and `length` in `variables.tf`.
 5. Run `terraform apply` again — confirm file content updates and pet name regenerates.
 6. Confirm `main.tf` was **never modified** after step 2.
+7. Create `terraform.tfvars` with new values — run `terraform plan` and confirm overrides apply without editing `variables.tf`.
+8. Optional: create `prod.tfvars` and run `terraform plan -var-file=prod.tfvars`.
 
 ---
 
 ### Topic Summary: Input Variables
 
-Hardcoded values in resource blocks limit reuse. **Input variables** declared in **`variables.tf`** with optional **`default`** values let you parameterize configuration. Reference them in `main.tf` as **`var.<name>`** without extra quotes. Terraform merges all `.tf` files in the directory, so `variables.tf` and `main.tf` work together automatically. To change infrastructure behavior, update **`variables.tf`** and run **`terraform apply`** — resource blocks in `main.tf` stay stable. Other ways to supply values (`.tfvars`, CLI, env vars) are covered later.
+Hardcoded values in resource blocks limit reuse. **Input variables** declared in **`variables.tf`** with optional **`default`** values parameterize **argument values**, string templates, and nested fields — but **not** resource type or resource name labels (those must be literal strings). Reference values with **`var.<name>`** using **snake_case** naming. Supply values via **`default`**, auto-loaded **`terraform.tfvars`**, **`-var-file`**, **`-var`**, or **`TF_VAR_`** — with CLI overrides winning over defaults. Update **`variables.tf`** or **`.tfvars`** and run **`terraform apply`** without changing resource block structure in `main.tf`.
 
 ### Knowledge Check Q&A
 
@@ -351,3 +555,27 @@ Hardcoded values in resource blocks limit reuse. **Input variables** declared in
 **Q: What block type and keyword do you use to declare an input variable?**
 
 **A:** A **`variable`** block: `variable "name" { default = "value" }`.
+
+**Q: Can input variables be used only for resource arguments?**
+
+**A:** **No** — variables work anywhere a **value expression** is allowed: arguments, string templates, tag values, and (later) `count`/`for_each`. They **cannot** replace the **resource type** or **resource name** in the block header — those must be literal strings like `resource "local_file" "pet"`.
+
+**Q: Can you write `resource "local_file" var.pet_name` to make the resource name dynamic?**
+
+**A:** **No.** The resource name label must be a fixed string at parse time. To manage many similar resources, use **`for_each`** or **`count`** with a variable map or number in a later lecture.
+
+**Q: What are the naming rules for Terraform variables?**
+
+**A:** Names must start with a letter or underscore, contain only letters, digits, underscores, and dashes, and be unique in the module. **snake_case** (`instance_type`) is the industry convention.
+
+**Q: What is the difference between `variables.tf` and `terraform.tfvars`?**
+
+**A:** **`variables.tf`** **declares** variables with `variable "name" { ... }`. **`terraform.tfvars`** **assigns values** with `name = value` — no `variable` keyword. Terraform auto-loads `terraform.tfvars` when present.
+
+**Q: How do you use a custom `.tfvars` file that is not named `terraform.tfvars`?**
+
+**A:** Pass it explicitly: `terraform plan -var-file="prod.tfvars"` or `terraform apply -var-file="prod.tfvars"`.
+
+**Q: If the same variable has a `default`, a value in `terraform.tfvars`, and a `-var` flag, which wins?**
+
+**A:** **`-var` on the CLI** has the highest priority, then **`-var-file`**, then **`terraform.tfvars` / `*.auto.tfvars`**, then **`TF_VAR_` env vars**, then **`default`** in `variables.tf`.
