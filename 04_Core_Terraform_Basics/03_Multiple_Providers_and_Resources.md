@@ -335,48 +335,98 @@ In your configuration directory:
 
 A single Terraform configuration can use **multiple providers** at once. The `random_pet` resource generates an **`id`** attribute (e.g., `dog-faithful-wolf`) that you **reference** in other resources using `random_pet.my_pet.id` — for example in `local_file` filename and content. Adding a new provider requires **`terraform init` again**; existing plugins are reused. The `random` provider is **logical** (no physical resource); the `local` provider writes the generated name to disk.
 
-### Knowledge Check Q&A
+---
 
-**Q: Can one Terraform configuration use more than one provider?**
+## Knowledge Check
 
-**A:** Yes. You can mix resources from different providers (e.g., `local_file` and `random_pet`) in the same `main.tf` or across multiple `.tf` files in the same configuration directory.
+Answer each question on your own first, then read the explanation below it.
 
-**Q: In `resource "random_pet" "my_pet"`, which part identifies the provider?**
+---
 
-**A:** The prefix before the underscore in the resource type — **`random`** in `random_pet`. The part after the underscore (`pet`) is the resource type within that provider.
+### 1 · Multiple providers
 
-**Q: Why must you run `terraform init` again after adding `random_pet`?**
+**Can one Terraform configuration use more than one provider?**
 
-**A:** Because `random_pet` requires the **`random`** provider plugin, which was not downloaded during the earlier init that only needed the `local` provider. Init detects the new provider and installs it.
+> **Yes.** You can mix resources from different providers — e.g. `local_file` and `random_pet` — in the same directory. Each resource type's prefix (`local_`, `random_`) tells Terraform which provider plugin to use.
 
-**Q: What does `terraform init` do with the `local` provider if it was already installed?**
+---
 
-**A:** It **reuses** the existing plugin from `.terraform/providers/` — it does not download it again unless the version constraint changed.
+### 2 · Provider from resource type
 
-**Q: After adding `random_pet` to an already-applied `local_file.pet`, what will `terraform plan` show?**
+**In `resource "random_pet" "my_pet"`, which part identifies the provider?**
 
-**A:** `random_pet.my_pet` — **`+ create`**. `local_file.pet` — likely **update or replace** if you changed `filename`/`content` to use `${random_pet.my_pet.id}` instead of static values.
+> The prefix **before the underscore** in the resource type — **`random`** in `random_pet`. The part after the underscore (`pet`) is the resource type within that provider.
 
-**Q: How do you use the `id` from `random_pet` in another resource?**
+---
 
-**A:** Reference it with **`random_pet.my_pet.id`** inside any argument that accepts an expression, e.g. `content = "My pet is called ${random_pet.my_pet.id}"` or `filename = "root/${random_pet.my_pet.id}.txt"`. Terraform creates `random_pet` first, then passes the `id` value into `local_file`.
+### 3 · Re-running init
 
-**Q: What does `random_pet.my_pet.id` contain after apply?**
+**Why must you run `terraform init` again after adding `random_pet`?**
 
-**A:** The **generated pet name** string — e.g., `dog-faithful-wolf` — built from your `prefix`, `separator`, and `length` arguments plus random words.
+> `random_pet` needs the **`random`** provider plugin, which was not installed when you only had `local_file`. Init detects the new provider requirement and downloads it.
 
-**Q: How can you verify the `id` value after apply?**
+---
 
-**A:** Three ways: read the **`[id=...]`** line in the `terraform apply` output; run **`terraform show`** and inspect `random_pet.my_pet`; or open the file written by `local_file` if you referenced `id` in `content` or `filename`.
+### 4 · Reusing an installed provider
 
-**Q: What is a "logical" provider like `random`?**
+**What does `terraform init` do with the `local` provider if it was already installed?**
 
-**A:** A provider that generates computed values (names, IDs, passwords) stored in Terraform **state** rather than creating real-world infrastructure like files, VMs, or databases.
+> It **reuses** the existing plugin from `.terraform/providers/` — no re-download unless the version constraint changed.
 
-**Q: What are the three arguments used in the `random_pet` example and what do they do?**
+---
 
-**A:** **`prefix`** — text prepended to the name; **`separator`** — character between prefix and generated words; **`length`** — number of random words to generate.
+### 5 · Plan after linking resources
 
-**Q: Where can you find the full list of arguments for `random_pet`?**
+**After adding `random_pet` and wiring `local_file` to `${random_pet.my_pet.id}`, what does `terraform plan` show?**
 
-**A:** In the official Terraform Registry documentation at `registry.terraform.io` under the `hashicorp/random` provider's `random_pet` resource page.
+> **`random_pet.my_pet`** — **`+ create`** (new resource).  
+> **`local_file.pet`** — **update or replace** if `filename`/`content` changed from static values to the dynamic `id`.
+
+---
+
+### 6 · Referencing `id`
+
+**How do you use the `id` from `random_pet` in another resource?**
+
+> Reference **`random_pet.my_pet.id`** in any argument that accepts an expression — e.g. `content = "My pet is called ${random_pet.my_pet.id}"`. Terraform creates the pet first, then passes the `id` into `local_file`.
+
+---
+
+### 7 · What `id` contains
+
+**What does `random_pet.my_pet.id` contain after apply?**
+
+> The **generated pet name** string — e.g. `dog-faithful-wolf` — built from your `prefix`, `separator`, `length`, and random words.
+
+---
+
+### 8 · Verifying the value
+
+**How can you verify the `id` value after apply?**
+
+> Three ways: read **`[id=...]`** in apply output; run **`terraform show`**; or open the file on disk if you referenced `id` in `content` or `filename`.
+
+---
+
+### 9 · Logical providers
+
+**What is a "logical" provider like `random`?**
+
+> A provider that generates **computed values** (names, IDs, passwords) stored in Terraform **state** — not real-world infrastructure like VMs, databases, or cloud networks.
+
+---
+
+### 10 · `random_pet` arguments
+
+**What do `prefix`, `separator`, and `length` do on `random_pet`?**
+
+> **`prefix`** — text prepended to the name. **`separator`** — character between prefix and generated words. **`length`** — number of random words to append.
+
+---
+
+### 11 · Registry docs
+
+**Where do you find the full argument list for `random_pet`?**
+
+> [registry.terraform.io](https://registry.terraform.io) → **`hashicorp/random`** provider → **`random_pet`** resource → **Argument Reference**.
+

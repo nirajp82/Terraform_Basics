@@ -517,40 +517,84 @@ In your configuration directory:
 
 A **`variable`** block supports **`default`**, **`type`**, and **`description`**. Primitive types are **`string`**, **`number`**, and **`bool`**. Omitting `type` defaults to **`any`**. **Lists** are ordered collections accessed by index starting at **`0`**. **Maps** are key-value pairs accessed with **`var.name["key"]`**. **Sets** behave like lists but forbid duplicates. **Objects** combine named fields of different types. **Tuples** enforce a **fixed length** and **specific type per position**. Type constraints cause **`terraform plan`** / **`validate`** to fail when defaults or inputs do not match.
 
-### Knowledge Check Q&A
+---
 
-**Q: What are the three arguments of a Terraform `variable` block?**
+## Knowledge Check
 
-**A:** **`default`** (fallback value), **`type`** (optional type constraint), and **`description`** (optional documentation — recommended best practice).
+Answer each question on your own first, then read the explanation below it.
 
-**Q: What is the default type if you omit the `type` argument?**
+---
 
-**A:** **`any`** — Terraform accepts any value shape without type validation.
+### 1 · Variable block arguments
 
-**Q: How do you access the second element of a list variable named `prefix`?**
+**What are the three arguments of a Terraform `variable` block?**
 
-**A:** **`var.prefix[1]`** — list indexes start at **0**, so index `1` is the second element.
+> **`default`** — fallback value when nothing else supplies the variable.  
+> **`type`** — optional constraint on what shape of value is allowed.  
+> **`description`** — optional human-readable docs (recommended best practice).
 
-**Q: How do you read the value for key `statement2` from a map variable `file_content`?**
+---
 
-**A:** **`var.file_content["statement2"]`** — use the key in square brackets after the variable name.
+### 2 · Default type
 
-**Q: What happens if you declare `type = list(number)` but provide string defaults like `["80", "443"]`?**
+**What is the default type if you omit the `type` argument?**
 
-**A:** Terraform returns a **type error** — e.g., *"a number is required, but have string"* — during **`terraform plan`** or **`validate`**.
+> **`any`** — Terraform accepts any value shape with no type validation. Add an explicit `type` when you want Terraform to reject mismatched values at plan/validate time.
 
-**Q: What is the difference between a list and a set?**
+---
 
-**A:** Both hold collections, but a **set cannot contain duplicate values**. Lists are **ordered** and indexed; sets are used when **uniqueness** matters.
+### 3 · List indexing
 
-**Q: What is the difference between a list and a tuple?**
+**How do you access the second element of a list variable named `prefix`?**
 
-**A:** A **list** requires all elements to share one type (`list(string)`). A **tuple** defines a **fixed number of elements** with **different types per position** — e.g., `tuple([string, number, bool])` must have exactly three values of those exact types.
+> **`var.prefix[1]`** — list indexes start at **0**, so index `1` is the second element (`"Mrs"` if the default is `["Mr", "Mrs", "Sir"]`).
 
-**Q: How do you access the `age` field of an object variable named `bella`?**
+---
 
-**A:** **`var.bella.age`** — use dot notation for object field names.
+### 4 · Map keys
 
-**Q: Why would adding a fourth element to a `tuple([string, number, bool])` default fail?**
+**How do you read the value for key `statement2` from a map variable `file_content`?**
 
-**A:** A tuple enforces an **exact element count**. Three types were declared, so exactly **three** values must be provided — a fourth value violates the constraint.
+> **`var.file_content["statement2"]`** — the variable name first, then the key in square brackets. The key is a label inside the map, not a separate variable.
+
+---
+
+### 5 · Type validation
+
+**What happens if you declare `type = list(number)` but provide string defaults like `["80", "443"]`?**
+
+> Terraform fails with a **type error** during **`terraform plan`** or **`validate`** — for example: *"a number is required, but have string"*. Fix the defaults or change the type.
+
+---
+
+### 6 · List vs set
+
+**What is the difference between a list and a set?**
+
+> Both hold collections, but a **set forbids duplicate values** and is unordered. A **list** is **ordered** and indexed with `[0]`, `[1]`, … — use a set when **uniqueness** matters.
+
+---
+
+### 7 · List vs tuple
+
+**What is the difference between a list and a tuple?**
+
+> A **list** requires every element to share one type — e.g. `list(string)`.  
+> A **tuple** fixes **both** the count and the type per position — e.g. `tuple([string, number, bool])` must have exactly three values of those exact types.
+
+---
+
+### 8 · Object fields
+
+**How do you access the `age` field of an object variable named `bella`?**
+
+> **`var.bella.age`** — dot notation for named fields. For a list field inside the object: **`var.bella.food[0]`**.
+
+---
+
+### 9 · Tuple length
+
+**Why would adding a fourth element to a `tuple([string, number, bool])` default fail?**
+
+> A tuple enforces an **exact element count**. Three types were declared, so exactly **three** values must be provided — a fourth value violates the constraint.
+

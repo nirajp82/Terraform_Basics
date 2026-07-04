@@ -118,17 +118,53 @@ Do **not** use red tones except for explicit warning nodes (e.g. "will FAIL").
 2–4 sentences that recap the entire lesson in plain language. A reader should understand the core idea without re-reading the full doc.
 ```
 
-### D. Knowledge Check Q&A (required, at the end)
+### D. Knowledge Check (required, at the end)
+
+Use a **standalone `## Knowledge Check` section** (not `###`) so it visually separates from the Topic Summary. Make each question easy to scan and each answer stand out in a blockquote.
 
 ```markdown
-### Knowledge Check Q&A
+### Topic Summary: <Short Topic Name>
 
-**Q: <Question>**
+2–4 sentences recap.
 
-**A:** <Clear, complete answer>
+---
 
-(Include 4–8 questions. Put a blank line between each question and answer, and between each Q&A pair.)
+## Knowledge Check
+
+Answer each question on your own first, then read the explanation below it.
+
+---
+
+### 1 · <Short topic label>
+
+**<Full question?>**
+
+> <Clear answer — one or more paragraphs. Use `>` on every line.
+> Lead with the direct answer; add brief context second if needed.>
+
+---
+
+### 2 · <Short topic label>
+
+**<Next question?>**
+
+> <Answer>
+
+---
 ```
+
+**Formatting rules:**
+
+| Do | Don't |
+| --- | --- |
+| Number each item: `### 1 · Label` | Flat `**Q:**` / `**A:**` pairs with no structure |
+| Put the question on its own line in **bold** | Run question and answer on the same line |
+| Put the answer in a **`>` blockquote** | Dense single-line answers with no breathing room |
+| Separate items with `---` | Wall of identical-looking paragraphs |
+| Use a short **topic label** after the number | Number-only headings with no hint of topic |
+| Include **4–8 questions** (more only if the lesson is broad — group with extra `---` spacers) | Skip the intro line under `## Knowledge Check` |
+
+**Answer quality:** Start with the direct answer in the first sentence. Add a second sentence only when it prevents a common mistake. Use **bold** for key terms and `` `code` `` for syntax — not for entire answers.
 
 ---
 
@@ -217,7 +253,7 @@ Before finishing, verify:
 - [ ] Key terms in **bold**; tables or lists where they aid scanning
 - [ ] Code blocks have correct language tags and valid syntax
 - [ ] `### Topic Summary:` section present
-- [ ] `### Knowledge Check Q&A` with 4–8 Q&A pairs
+- [ ] `## Knowledge Check` with numbered items, blockquote answers, and `---` separators
 - [ ] No transcript filler; technical accuracy preserved
 - [ ] Style matches `03_Terraform.md` and `02_HCL_Basics.md`
 - [ ] Changes **committed and pushed** to `origin/main` (or active branch)
@@ -246,8 +282,16 @@ Step-by-step with commands
 ### Topic Summary: ...
 Recap paragraph
 
-### Knowledge Check Q&A
-Q/A pairs
+---
+
+## Knowledge Check
+Intro line
+
+### 1 · Label
+**Question?**
+> Answer
+
+---
 ```
 
 When the user says *“here is the transcript”*, apply this guide, write the lesson file, then **commit and push** — unless the target folder or filename is ambiguous, in which case propose the path first.

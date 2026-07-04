@@ -331,36 +331,76 @@ In your configuration directory (same project as the Input Variables lesson — 
 
 Input variables can receive values from **`default`**, **interactive prompts**, **`-var`**, **`TF_VAR_<name>` environment variables**, and **`.tfvars`** files — but only after the variable is **declared** in a `.tf` file (see **`04_Input_Variables.md`**). Files named **`terraform.tfvars`** or ending in **`.auto.tfvars`** are **auto-loaded**; other `.tfvars` names require **`-var-file`**. When multiple sources set the same variable, Terraform applies **precedence**: environment variables load first, then **`terraform.tfvars`**, then **`*.auto.tfvars`** (alphabetical), and **`-var` / `-var-file`** on the CLI **win last**.
 
-### Knowledge Check Q&A
+---
 
-**Q: What happens when you run `terraform apply` and a variable has no `default` and no value from `.tfvars`, `-var`, or `TF_VAR_`?**
+## Knowledge Check
 
-**A:** Terraform prompts you **interactively** to enter a value for each unset variable.
+Answer each question on your own first, then read the explanation below it.
 
-**Q: How do you pass a variable named `filename` on the command line?**
+---
 
-**A:** Use **`-var="filename=root/pets.txt"`**. Repeat **`-var`** for each additional variable.
+### 1 · Interactive prompts
 
-**Q: How do you set the variable `length` using an environment variable?**
+**What happens when you run `terraform apply` and a variable has no `default` and no value from `.tfvars`, `-var`, or `TF_VAR_`?**
 
-**A:** Export **`TF_VAR_length`** with the desired value — e.g. `export TF_VAR_length=2` (bash) or `$env:TF_VAR_length = "2"` (PowerShell).
+> Terraform prompts you **interactively** in the terminal — one prompt per unset variable. This works for local learning but is awkward for CI/CD, where you should use `.tfvars`, env vars, or `-var` instead.
 
-**Q: Which `.tfvars` files are loaded automatically without a flag?**
+---
 
-**A:** **`terraform.tfvars`**, **`terraform.tfvars.json`**, and any file ending in **`.auto.tfvars`** or **`.auto.tfvars.json`**.
+### 2 · CLI `-var`
 
-**Q: How do you use a file named `variable.tfvars` or `prod.tfvars`?**
+**How do you pass a variable named `filename` on the command line?**
 
-**A:** Pass it with **`-var-file`**: `terraform apply -var-file="prod.tfvars"`.
+> Use **`-var="filename=root/pets.txt"`**. Repeat **`-var`** for each additional variable on the same command.
 
-**Q: In the worked example with env var, `terraform.tfvars`, `variable.auto.tfvars`, and `-var` all setting `filename`, which value wins?**
+---
 
-**A:** **`/root/best-pet.txt`** from the **`-var`** flag — CLI flags have the **highest precedence**.
+### 3 · Environment variables
 
-**Q: Does `terraform.tfvars` override `TF_VAR_filename`?**
+**How do you set the variable `length` using an environment variable?**
 
-**A:** **Yes.** `terraform.tfvars` is loaded **after** environment variables, so its value replaces the env var value unless a higher-priority source overrides it.
+> Export **`TF_VAR_length`** before running Terraform:
+>
+> - Bash: `export TF_VAR_length=2`  
+> - PowerShell: `$env:TF_VAR_length = "2"`
 
-**Q: What syntax belongs in a `.tfvars` file?**
+---
 
-**A:** **Assignments only** — `name = value` lines in HCL syntax. No `variable` blocks. To declare variables, see **`04_Input_Variables.md` §2**.
+### 4 · Auto-loaded files
+
+**Which `.tfvars` files load automatically without a flag?**
+
+> **`terraform.tfvars`**, **`terraform.tfvars.json`**, and any file ending in **`.auto.tfvars`** or **`.auto.tfvars.json`**.
+
+---
+
+### 5 · Custom `.tfvars` names
+
+**How do you use a file named `prod.tfvars` or `variable.tfvars`?**
+
+> Pass it explicitly with **`-var-file`**: `terraform apply -var-file="prod.tfvars"`. Custom names are **not** auto-loaded.
+
+---
+
+### 6 · Precedence winner
+
+**In the worked example — env var, `terraform.tfvars`, `variable.auto.tfvars`, and `-var` all set `filename` — which value wins?**
+
+> **`/root/best-pet.txt`** from the **`-var`** flag. CLI flags are **Step 4 (highest)** in the precedence ladder and override every lower source.
+
+---
+
+### 7 · Env vs `terraform.tfvars`
+
+**Does `terraform.tfvars` override `TF_VAR_filename`?**
+
+> **Yes.** `terraform.tfvars` loads **after** environment variables, so its value replaces the env var unless a higher-priority source (`.auto.tfvars` or CLI) overrides it again.
+
+---
+
+### 8 · `.tfvars` syntax
+
+**What syntax belongs in a `.tfvars` file?**
+
+> **Assignments only** — `name = value` lines in HCL. No `variable` blocks. Declarations belong in a `.tf` file — see **`04_Input_Variables.md` §2**.
+

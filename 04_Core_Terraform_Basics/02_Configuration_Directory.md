@@ -404,56 +404,114 @@ Step 5 proves that **file layout does not change infrastructure** — only the r
 
 A Terraform **configuration directory** is the root folder where you run all Terraform commands. Terraform loads **only** `*.tf` files **directly inside that folder** and merges them in memory. Subdirectories require an explicit **`module` block**; parent and sibling folders are never loaded. Memory at `plan`/`apply` is driven by **how many resources are in state** — not by file count — so migrations managing millions of users (e.g., Okta → CyberArk) are vastly more expensive than a two-file lab.
 
-### Knowledge Check Q&A
+---
 
-**Q: What is a Terraform configuration directory?**
+## Knowledge Check
 
-**A:** It is the **project folder where you run Terraform commands** (`init`, `plan`, `apply`). Terraform scans **only that directory** — not parent folders, not sibling folders — and loads **every `*.tf` file directly inside it**. All loaded files are parsed and **merged into one single configuration held in memory** before Terraform builds the execution plan.
+Answer each question on your own first, then read the explanation below it.
 
-**Q: Where does Terraform load `.tf` files from — and where does it NOT load from?**
+---
 
-**A:** It loads from the **current working directory** (the configuration directory) only. Files like `main.tf`, `cat.tf`, and `variables.tf` in that folder are merged together. It does **not** load `.tf` files from subfolders unless you reference them with a `module` block. It does **not** load `terraform.tfstate`, `.terraform/`, `.tfvars`, or non-`.tf` files as configuration.
+### 1 · Definition
 
-**Q: How much memory does Terraform use during `plan` and `apply`?**
+**What is a Terraform configuration directory?**
 
-**A:** Two different things matter. **Parsing `.tf` files** into a merged configuration uses very little RAM — a few MB even for many files. What actually drives memory at scale is **how many resources Terraform manages in state**. In an Okta → CyberArk migration with **3 million Okta users** (source) and **2 million `cyberark_user` resources** in CyberArk (target), Terraform must load millions of state entries and compare each against the live API during `plan` — that can reach **gigabytes of RAM**, multi-hour runtimes, and **GB-sized state files**. A lab with 2 `local_file` resources is trivial by comparison. Splitting resources across 1 file vs. 10 files does not change this — **resource count in state** does.
+> The **project folder where you run Terraform commands** (`init`, `plan`, `apply`). Terraform scans **only that directory**, loads every **`*.tf` file directly inside it**, and merges them into **one configuration in memory**.
 
-**Q: Can you put `.tf` files in a subdirectory and have Terraform load them automatically?**
+---
 
-**A:** **No.** Terraform only auto-merges `*.tf` files **directly inside** the configuration directory. A file at `users/cyberark_users.tf` is **ignored** unless you add a `module` block such as `module "users" { source = "./users" }`, which loads that subfolder as a **child module** — not as a flat merge into root.
+### 2 · Load boundaries
 
-**Q: Can Terraform load `.tf` files from a parent folder or a sibling directory?**
+**Where does Terraform load `.tf` files from — and where does it NOT?**
 
-**A:** **No.** Terraform only reads configuration from the **directory where you run the command**. A sibling folder like `okta-export/users.tf` is never discovered. To use code from another path, you must explicitly reference it via a `module` block with `source = "../other-folder"` or a Git/registry URL.
+> **Loads:** the current working directory only — `main.tf`, `variables.tf`, `cat.tf`, etc. merge together.  
+> **Does not load:** subfolders (without a `module` block), parent/sibling folders, `.terraform/`, `.tfstate`, or `.tfvars` as configuration.
 
-**Q: What is the difference between a merged `.tf` file and a child module subdirectory?**
+---
 
-**A:** All `*.tf` files in the **root directory** are **merged into one configuration** — they share the same scope. A **subdirectory loaded via `module`** is a **separate module** with its own scope, inputs (`variables`), and outputs. Root `main.tf` and `cat.tf` merge together; `./modules/users/` only loads when `module "users" { source = "./modules/users" }` is declared.
+### 3 · Memory at scale
 
-**Q: If you add `cat.tf` to the directory, does Terraform automatically use it?**
+**How much memory does Terraform use during `plan` and `apply`?**
 
-**A:** Yes. Any file ending in `.tf` in the configuration directory is automatically merged into the configuration. No registration step is needed.
+> Parsing `.tf` files uses very little RAM. What drives memory at scale is **resource count in state** — e.g. millions of `cyberark_user` resources in an Okta → CyberArk migration can mean gigabytes of RAM and multi-hour plans. A two-resource lab is trivial by comparison.
 
-**Q: Is `main.tf` required by Terraform?**
+---
 
-**A:** No. Terraform only requires the `.tf` extension. `main.tf` is an **industry convention** so teams have a predictable entry point for core resources.
+### 4 · Subdirectories
 
-**Q: What are `variables.tf`, `outputs.tf`, and `providers.tf` used for?**
+**Can you put `.tf` files in a subdirectory and have Terraform load them automatically?**
 
-**A:** Standard filenames for separating concerns — input variables, output values, and provider settings. Covered in later sections of this course.
+> **No.** Only files **directly inside** the root configuration directory auto-merge. Subfolders need an explicit **`module`** block: `module "users" { source = "./users" }`.
 
-**Q: Does Terraform care whether you use one file or multiple files?**
+---
 
-**A:** No. One file with ten resource blocks equals ten files with one block each, as long as they are in the same configuration directory.
+### 5 · Parent and sibling folders
 
-**Q: If `main.tf` defines `local_file.pet` and `cat.tf` defines `local_file.cat`, how many resources does Terraform manage?**
+**Can Terraform load `.tf` files from a parent folder or a sibling directory?**
 
-**A:** Two resources — both files are merged into one configuration, so Terraform manages `local_file.pet` and `local_file.cat`.
+> **No.** Only the directory where you run the command. To use another path, reference it with a **`module`** block and `source = "../other-folder"` or a Git/registry URL.
 
-**Q: Can two `.tf` files define the same resource name (e.g., two `local_file.pet` blocks)?**
+---
 
-**A:** No. Each resource address (`type.name`) must be unique across all `.tf` files in the directory. Duplicates cause a configuration error.
+### 6 · Merge vs module
 
-**Q: Will Terraform load a file named `settings.tfvars` as configuration?**
+**What is the difference between merged `.tf` files and a child module subdirectory?**
 
-**A:** No. Only `.tf` files are configuration. `.tfvars` files supply variable **values**, not resource definitions.
+> **Root `.tf` files** merge into **one shared scope**. A **subdirectory loaded via `module`** is a **separate module** with its own variables, outputs, and scope.
+
+---
+
+### 7 · Adding `cat.tf`
+
+**If you add `cat.tf` to the directory, does Terraform automatically use it?**
+
+> **Yes.** Any **`.tf`** file in the configuration directory is merged automatically — no registration step.
+
+---
+
+### 8 · Is `main.tf` required?
+
+**Is `main.tf` required by Terraform?**
+
+> **No.** Only the **`.tf` extension** matters. `main.tf` is an **industry convention** for a predictable entry point.
+
+---
+
+### 9 · Standard filenames
+
+**What are `variables.tf`, `outputs.tf`, and `providers.tf` used for?**
+
+> Standard names for separating **inputs**, **outputs**, and **provider settings** — organizational convention, not engine requirements.
+
+---
+
+### 10 · One file vs many
+
+**Does Terraform care whether you use one file or multiple files?**
+
+> **No.** Ten resources in one file equals ten files with one resource each — same merged configuration, as long as they share the same directory.
+
+---
+
+### 11 · Resources across files
+
+**If `main.tf` defines `local_file.pet` and `cat.tf` defines `local_file.cat`, how many resources does Terraform manage?**
+
+> **Two** — both files merge into one configuration, so Terraform manages **`local_file.pet`** and **`local_file.cat`**.
+
+---
+
+### 12 · Duplicate resource names
+
+**Can two `.tf` files define the same resource name (e.g. two `local_file.pet` blocks)?**
+
+> **No.** Each resource address (`type.name`) must be **unique** across all merged files. Duplicates cause a configuration error.
+
+---
+
+### 13 · `.tfvars` vs `.tf`
+
+**Will Terraform load a file named `settings.tfvars` as configuration?**
+
+> **No.** Only **`.tf`** files are configuration. **`.tfvars`** files supply variable **values**, not resource definitions.
+

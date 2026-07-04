@@ -392,48 +392,98 @@ Later in this course you will learn how to **pin a specific provider version** s
 
 When you write `resource "local_file" "pet"`, Terraform detects that it needs the **`local`** provider. Running **`terraform init`** scans your `.tf` files, resolves the source address (`hashicorp/local`), downloads the signed provider binary from **`registry.terraform.io`** (the default public registry), and stores it in the hidden **`.terraform/providers/`** directory on your machine. Terraform can also download from **other registries** when a custom hostname is specified in the source address (e.g., a company private registry). Init is safe to re-run and never touches real infrastructure. Only after init can Terraform load the provider plugin to execute `plan` and `apply`. The source address format is `[hostname/]namespace/type`. Providers in the public registry are classified as Official, Partner, or Community based on who maintains them.
 
-### Knowledge Check Q&A
+---
 
-**Q: You have written `main.tf` but have not run any commands yet. Can Terraform create `root/pet.txt`?**
+## Knowledge Check
 
-**A:** No. Without running `terraform init` first, the `local` provider plugin is not installed. Terraform cannot execute any resource until init downloads the required provider.
+Answer each question on your own first, then read the explanation below it.
 
-**Q: When you run `terraform init`, where does Terraform download the provider from?**
+---
 
-**A:** From the **Terraform Registry** at `registry.terraform.io`. For the `local` provider, it downloads `hashicorp/local` (equivalent to `registry.terraform.io/hashicorp/local`).
+### 1 · Before init
 
-**Q: After `terraform init`, where is the provider binary stored on your machine?**
+**You have written `main.tf` but have not run any commands yet. Can Terraform create `root/pet.txt`?**
 
-**A:** Inside the hidden `.terraform/providers/` directory in your project folder, under a path like `.terraform/providers/registry.terraform.io/hashicorp/local/2.9.0/windows_amd64/terraform-provider-local_v2.9.0_x5.exe`.
+> **No.** Without **`terraform init`**, the provider plugin is not installed. Terraform cannot execute any resource until init downloads the required provider.
 
-**Q: How does Terraform know it needs the `local` provider from the resource block `resource "local_file" "pet"`?**
+---
 
-**A:** It reads the resource type `local_file` and extracts the provider name from the prefix before the underscore — `local`.
+### 2 · Where providers download from
 
-**Q: Does running `terraform init` create or modify any real infrastructure?**
+**When you run `terraform init`, where does Terraform download the provider from?**
 
-**A:** No. `terraform init` only downloads provider plugins and prepares the working directory. It is safe to run multiple times.
+> The **Terraform Registry** at **`registry.terraform.io`**. For `local`, the address is **`hashicorp/local`** (same as `registry.terraform.io/hashicorp/local`).
 
-**Q: What is a provider source address, and what are its parts?**
+---
 
-**A:** It is the identifier Terraform uses to find a plugin in the registry. Format: `[<hostname>/]<namespace>/<type>`. Example: `hashicorp/local` where `hashicorp` is the namespace and `local` is the provider type.
+### 3 · Local storage path
 
-**Q: What are the three tiers of providers in the Terraform Registry?**
+**After `terraform init`, where is the provider binary stored on your machine?**
 
-**A:** **Official** (HashiCorp-maintained), **Partner** (vendor-maintained through HashiCorp's partner program), and **Community** (maintained by individual contributors).
+> In **`.terraform/providers/`** inside your project — e.g. `.terraform/providers/registry.terraform.io/hashicorp/local/2.9.0/windows_amd64/terraform-provider-local_v2.9.0_x5.exe`.
 
-**Q: What version of a provider does Terraform install by default during init?**
+---
 
-**A:** The **latest available version** that satisfies the configuration, unless you explicitly constrain the version in your code.
+### 4 · Detecting the provider
 
-**Q: Will Terraform only download providers from HashiCorp's public registry?**
+**How does Terraform know it needs the `local` provider from `resource "local_file" "pet"`?**
 
-**A:** No. `registry.terraform.io` is the **default** when no hostname is given (e.g., `hashicorp/local`). If the source address includes a different hostname — such as a Terraform Enterprise private registry or a self-hosted company registry — Terraform downloads from that host instead.
+> It reads the resource type **`local_file`** and takes the prefix **before the underscore** — **`local`**.
 
-**Q: Why does the `.terraform/providers/` folder contain `registry.terraform.io` in the path?**
+---
 
-**A:** That folder segment records **which registry** the plugin was downloaded from. A provider from a private registry would show that registry's hostname in the path instead (e.g., `terraform.mycompany.com/...`).
+### 5 · Init and infrastructure
 
-**Q: In this course, which registry do we use?**
+**Does running `terraform init` create or modify any real infrastructure?**
 
-**A:** The public **Terraform Registry** at `registry.terraform.io`. All shorthand addresses like `hashicorp/local` resolve there by default.
+> **No.** Init only downloads provider plugins and prepares the working directory. Safe to run multiple times.
+
+---
+
+### 6 · Source address
+
+**What is a provider source address, and what are its parts?**
+
+> The identifier Terraform uses to find a plugin: **`[<hostname>/]<namespace>/<type>`**.  
+> Example: **`hashicorp/local`** — namespace **`hashicorp`**, type **`local`**.
+
+---
+
+### 7 · Registry tiers
+
+**What are the three tiers of providers in the Terraform Registry?**
+
+> **Official** (HashiCorp), **Partner** (vendor via HashiCorp program), and **Community** (individual maintainers).
+
+---
+
+### 8 · Default version
+
+**What version of a provider does Terraform install by default during init?**
+
+> The **latest** version that satisfies the configuration, unless you pin a version constraint in code.
+
+---
+
+### 9 · Non-public registries
+
+**Will Terraform only download providers from HashiCorp's public registry?**
+
+> **No.** `registry.terraform.io` is the **default** when no hostname is given. A custom hostname in the source address points to a **private or alternate registry** instead.
+
+---
+
+### 10 · Path shows registry host
+
+**Why does `.terraform/providers/` contain `registry.terraform.io` in the path?**
+
+> That segment records **which registry** supplied the plugin. A private registry would show its hostname there instead.
+
+---
+
+### 11 · Course default registry
+
+**In this course, which registry do we use?**
+
+> The public **Terraform Registry** at **`registry.terraform.io`**. Shorthand addresses like **`hashicorp/local`** resolve there by default.
+

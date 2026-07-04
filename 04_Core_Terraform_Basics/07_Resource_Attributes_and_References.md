@@ -270,36 +270,83 @@ In your configuration directory (with **`random_pet`** and **`local_file`** alre
 
 **Arguments** are values you pass **into** a resource to create it. **Attributes** are values Terraform exports **after** apply — listed under **Attribute Reference** in the Registry. Link resources with **`resource_type.resource_name.attribute`**. Inside strings, wrap expressions in **`${ ... }`** interpolation so Terraform evaluates the reference and inserts the result. Referencing another resource creates an **implicit dependency** — the referenced resource must be created first. This pattern connects **`random_pet.my_pet.id`** to **`local_file.pet`** content (and optionally filename), replacing hardcoded text with the dynamically generated name.
 
-### Knowledge Check Q&A
+## Knowledge Check
 
-**Q: What is the difference between a resource argument and a resource attribute?**
+Answer each question on your own first, then read the explanation below it.
 
-**A:** An **argument** is an **input** you set in the resource block to configure creation. An **attribute** is an **output** Terraform exposes after the resource exists — read-only, documented under **Attribute Reference**.
+---
 
-**Q: What attribute does `random_pet` expose that holds the generated pet name?**
+### 1 · Arguments vs attributes
 
-**A:** **`id`** — a **string** containing the full generated name (e.g. `mr-faithful-bull`).
+**What is the difference between a resource argument and a resource attribute?**
 
-**Q: What is the syntax for referencing `id` from a resource named `my_pet`?**
+> **Arguments** are inputs you set in the resource block — `prefix`, `content`, `filename`, and so on. They tell Terraform *how* to create the resource.
+>
+> **Attributes** are outputs Terraform exposes *after* the resource exists — read-only values like `id`, listed under **Attribute Reference** in the Registry. You read them; you never assign them in the block.
 
-**A:** **`random_pet.my_pet.id`** — resource type, resource name, and attribute separated by dots.
+---
 
-**Q: What does `${random_pet.my_pet.id}` do inside a string argument?**
+### 2 · The `id` attribute
 
-**A:** It is an **interpolation sequence** — Terraform **evaluates** the expression inside **`${ ... }`**, converts the result to a string, and **inserts** it into the surrounding text.
+**What attribute on `random_pet` holds the generated pet name?**
 
-**Q: Why does `local_file.pet` automatically depend on `random_pet.my_pet` when you use `${random_pet.my_pet.id}` in `content`?**
+> **`id`** — a string containing the full generated name (for example, `mr-faithful-bull`). The same value appears in apply output as `[id=...]`.
 
-**A:** Terraform infers an **implicit dependency** from the reference — the pet name must exist before the file content can be computed. No separate `depends_on` is needed for this case.
+---
 
-**Q: Where in the Terraform Registry do you find which attributes a resource exports?**
+### 3 · Reference syntax
 
-**A:** The **Attribute Reference** section on the resource's documentation page.
+**How do you reference `id` from a resource named `my_pet`?**
 
-**Q: What is the difference between `var.content` and `random_pet.my_pet.id`?**
+> Write **`random_pet.my_pet.id`** — three parts separated by dots:
+>
+> - **`random_pet`** — resource type  
+> - **`my_pet`** — resource name (your label in the block, not the pet name)  
+> - **`id`** — attribute from the docs
 
-**A:** **`var.content`** is an **input variable** you supply. **`random_pet.my_pet.id`** is a **resource attribute** Terraform produces when **`random_pet`** is applied — you cannot set `.id` directly; it is computed.
+---
 
-**Q: After changing `content` from a hardcoded string to use `${random_pet.my_pet.id}`, what does `terraform plan` typically show?**
+### 4 · Interpolation
 
-**A:** An **in-place update** (`~`) on **`local_file.pet`** — **`content`** changes from the old literal string to the interpolated pet name.
+**What does `${random_pet.my_pet.id}` do inside a string like `content`?**
+
+> It is an **interpolation sequence**. Terraform evaluates the expression inside **`${ ... }`**, converts the result to a string, and inserts it into the surrounding text.
+>
+> Example: `"My favorite pet is ${random_pet.my_pet.id}"` → `My favorite pet is mr-faithful-bull`
+
+---
+
+### 5 · Implicit dependency
+
+**Why does `local_file.pet` automatically wait for `random_pet.my_pet` when `content` uses `${random_pet.my_pet.id}`?**
+
+> Terraform builds an **implicit dependency** from the reference. The pet name must exist before the file content can be computed — so `random_pet` is created first. You do not need a separate `depends_on` for this case.
+
+---
+
+### 6 · Registry docs
+
+**Where do you find which attributes a resource exports?**
+
+> In the Terraform Registry, on the resource's documentation page — scroll to **Attribute Reference**. Arguments are listed separately under **Argument Reference**.
+
+---
+
+### 7 · Variables vs attributes
+
+**How is `var.content` different from `random_pet.my_pet.id`?**
+
+> **`var.content`** is an **input variable** — you declare it and supply the value via default, `.tfvars`, CLI, or env vars.
+>
+> **`random_pet.my_pet.id`** is a **resource attribute** — Terraform computes it when `random_pet` is applied. You cannot set `.id` yourself.
+
+---
+
+### 8 · Plan output
+
+**After changing `content` from a hardcoded string to `${random_pet.my_pet.id}`, what does `terraform plan` show?**
+
+> An **in-place update** (`~`) on **`local_file.pet`**. The **`content`** line changes from the old literal string to the interpolated pet name — for example:
+>
+> `~ content = "My favorite pet is Mr. Cat" -> "My favorite pet is mr-faithful-bull"`
+

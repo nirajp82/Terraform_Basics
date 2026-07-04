@@ -658,80 +658,156 @@ In your configuration directory:
 
 Hardcoded values in resource blocks limit reuse. **Input variables** must be **declared** with a **`variable`** block in a **`.tf`** file before you reference **`var.<name>`** — `.tfvars` and other assignment files only supply values, they do not declare variables. Declarations typically live in **`variables.tf`** with optional **`default`** values, parameterizing **argument values**, string templates, and nested fields — but **not** resource type or resource name labels (those must be literal strings). All `.tf` files in the **same directory** are **auto-merged into one module** — no import needed. Reference values with **`var.<name>`** using **snake_case** naming. Supply values via **`default`**, auto-loaded **`terraform.tfvars`**, **`-var-file`**, **`-var`**, or **`TF_VAR_`**. Update **`variables.tf`** or **`.tfvars`** and run **`terraform apply`** without changing resource block structure in `main.tf`.
 
-### Knowledge Check Q&A
+---
 
-**Q: Why is hardcoding argument values in `main.tf` a bad practice for IaC?**
+## Knowledge Check
 
-**A:** It limits **reusability** — the same code cannot be easily redeployed with different settings. You must edit resource blocks instead of supplying new inputs, which defeats the purpose of parameterized Infrastructure as Code.
+Answer each question on your own first, then read the explanation below it.
 
-**Q: Which file is commonly used to declare input variables?**
+---
 
-**A:** **`variables.tf`** — an industry convention in the same configuration directory as `main.tf`. Terraform automatically merges it with other `.tf` files.
+### 1 · Why variables?
 
-**Q: How do you reference an input variable named `content` in a resource block?**
+**Why is hardcoding argument values in `main.tf` a bad practice for IaC?**
 
-**A:** Use **`var.content`**. The `var.` prefix tells Terraform to read the input variable value.
+> Hardcoding limits **reusability** — you must edit resource blocks for every environment or change instead of supplying new inputs. That defeats parameterized Infrastructure as Code.
 
-**Q: Do you need double quotes around `var.content` when assigning it to an argument?**
+---
 
-**A:** **No.** For a direct variable reference, write `content = var.content`. Quotes are for literal strings, not variable references.
+### 2 · Where to declare
 
-**Q: What does the `default` argument inside a `variable` block do?**
+**Which file is commonly used to declare input variables?**
 
-**A:** It sets the value Terraform uses when **no other input** is provided (no CLI flag, `.tfvars`, or environment variable). It is optional but convenient for learning and sensible fallbacks.
+> **`variables.tf`** — an industry convention in the same directory as `main.tf`. Terraform automatically merges it with every other `.tf` file in that folder.
 
-**Q: If you change a value in `variables.tf`, must you also edit `main.tf`?**
+---
 
-**A:** **No.** That is the point of variables — update `variables.tf` (or other input sources later), run `terraform apply`, and Terraform updates resources based on the new values while `main.tf` resource structure stays the same.
+### 3 · Referencing variables
 
-**Q: What happens if you change `random_pet.length` from `1` to `2` in `variables.tf` and run apply?**
+**How do you reference an input variable named `content` in a resource block?**
 
-**A:** Terraform detects a change to a **force-new** argument. It **destroys and recreates** `random_pet.my_pet` with a new random name containing two words after the prefix.
+> Write **`var.content`**. The **`var.`** prefix tells Terraform to read the input variable — not a literal string.
 
-**Q: What block type and keyword do you use to declare an input variable?**
+---
 
-**A:** A **`variable`** block: `variable "name" { default = "value" }`.
+### 4 · Quotes around `var.*`
 
-**Q: Can input variables be used only for resource arguments?**
+**Do you need double quotes around `var.content` when assigning it to an argument?**
 
-**A:** **No** — variables work anywhere a **value expression** is allowed: arguments, string templates, tag values, and (later) `count`/`for_each`. They **cannot** replace the **resource type** or **resource name** in the block header — those must be literal strings like `resource "local_file" "pet"`.
+> **No.** Write `content = var.content` directly. Quotes are for **literal strings**, not variable references.
 
-**Q: Can you write `resource "local_file" var.pet_name` to make the resource name dynamic?**
+---
 
-**A:** **No.** The resource name label must be a fixed string at parse time. To manage many similar resources, use **`for_each`** or **`count`** with a variable map or number in a later lecture.
+### 5 · The `default` argument
 
-**Q: What are the naming rules for Terraform variables?**
+**What does the `default` argument inside a `variable` block do?**
 
-**A:** Names must start with a letter or underscore, contain only letters, digits, underscores, and dashes, and be unique in the module. **snake_case** (`instance_type`) is the industry convention.
+> It sets the value Terraform uses when **no other input** is provided — no CLI flag, `.tfvars`, or environment variable. Optional, but useful for sensible fallbacks.
 
-**Q: What is the difference between `variables.tf` and `terraform.tfvars`?**
+---
 
-**A:** **`variables.tf`** **declares** variables with `variable "name" { ... }`. **`terraform.tfvars`** **assigns values** with `name = value` — no `variable` keyword. Terraform auto-loads `terraform.tfvars` when present.
+### 6 · Updating values
 
-**Q: How do you use a custom `.tfvars` file that is not named `terraform.tfvars`?**
+**If you change a value in `variables.tf`, must you also edit `main.tf`?**
 
-**A:** Pass it explicitly: `terraform plan -var-file="prod.tfvars"` or `terraform apply -var-file="prod.tfvars"`.
+> **No.** Update the variable (or `.tfvars`), run **`terraform apply`**, and Terraform updates resources from the new values. The resource block structure in `main.tf` stays the same.
 
-**Q: If the same variable has a `default`, a value in `terraform.tfvars`, and a `-var` flag, which wins?**
+---
 
-**A:** **`-var` on the CLI** has the highest priority, then **`-var-file`**, then **`terraform.tfvars` / `*.auto.tfvars`**, then **`TF_VAR_` env vars**, then **`default`** in `variables.tf`.
+### 7 · Force-new changes
 
-**Q: Why does `main.tf` find variables from `variables.tf` without an import statement?**
+**What happens if you change `random_pet.length` from `1` to `2` in `variables.tf` and run apply?**
 
-**A:** Terraform **automatically loads every `.tf` file** in the configuration directory and merges them into **one module** before planning or applying. The folder is the boundary — not the file. `variables.tf` is only a naming convention for humans; Terraform treats it the same as any other `.tf` file in that directory.
+> Terraform detects a change to a **force-new** argument. It **destroys and recreates** `random_pet.my_pet` with a new random name containing two words after the prefix.
 
-**Q: Could you put variable blocks and resource blocks in the same file instead of splitting them?**
+---
 
-**A:** **Yes.** Terraform would behave the same. Teams split into `variables.tf` and `main.tf` for **readability and organization**, not because the engine requires separate files.
+### 8 · Declaration syntax
 
-**Q: I have `terraform.tfvars` and `*.auto.tfvars` but no `variables.tf`. Will `var.filename` work?**
+**What block type and keyword do you use to declare an input variable?**
 
-**A:** **No.** `.tfvars` files only **assign values** — they do **not declare** variables. Add `variable "filename" { ... }` in a **`.tf` file** (typically **`variables.tf`**) in the same directory. Without it, Terraform reports an **undeclared input variable** error.
+> A **`variable`** block: `variable "name" { default = "value" }` (plus optional `type` and `description`).
 
-**Q: Is the filename `variables.tf` mandatory?**
+---
 
-**A:** **No** — the **`variable` block is mandatory** if you use `var.<name>`, but it can live in any **`.tf`** file Terraform merges in that directory. **`variables.tf`** is industry convention for where to put declarations.
+### 9 · Where variables work
 
-**Q: Why does my editor show a red error on `var.filename` even though I have a value in `terraform.tfvars`?**
+**Can input variables be used only for resource arguments?**
 
-**A:** The editor checks for a **`variable "filename"` declaration**, not a `.tfvars` assignment. Add the declaration in a `.tf` file; the squiggle should clear once the block exists.
+> **No.** Variables work anywhere a **value expression** is allowed — arguments, string templates, tags, and (later) `count`/`for_each`.
+>
+> They **cannot** replace the **resource type** or **resource name** in the block header — those must be literal strings.
+
+---
+
+### 10 · Dynamic resource names
+
+**Can you write `resource "local_file" var.pet_name` to make the resource name dynamic?**
+
+> **No.** The resource name label must be a **fixed string** at parse time. Use **`for_each`** or **`count`** with a variable map or number in a later lecture.
+
+---
+
+### 11 · Naming rules
+
+**What are the naming rules for Terraform variables?**
+
+> Start with a letter or underscore; use letters, digits, underscores, and dashes only; keep names **unique** in the module. **`snake_case`** (`instance_type`) is the community convention.
+
+---
+
+### 12 · `variables.tf` vs `terraform.tfvars`
+
+**What is the difference between `variables.tf` and `terraform.tfvars`?**
+
+> **`variables.tf`** **declares** variables: `variable "name" { ... }`.  
+> **`terraform.tfvars`** **assigns values**: `name = value` — no `variable` keyword. Terraform auto-loads `terraform.tfvars` when present.
+
+---
+
+### 13 · Custom `.tfvars`
+
+**How do you use a custom `.tfvars` file that is not named `terraform.tfvars`?**
+
+> Pass it explicitly: `terraform plan -var-file="prod.tfvars"` or `terraform apply -var-file="prod.tfvars"`.
+
+---
+
+### 14 · Precedence
+
+**If the same variable has a `default`, a value in `terraform.tfvars`, and a `-var` flag, which wins?**
+
+> **`-var` on the CLI** (highest), then **`-var-file`**, then **`terraform.tfvars` / `*.auto.tfvars`**, then **`TF_VAR_`**, then **`default`** in `variables.tf`.
+
+---
+
+### 15 · No import needed
+
+**Why does `main.tf` find variables from `variables.tf` without an import statement?**
+
+> Terraform **loads every `.tf` file** in the configuration directory and merges them into **one module**. The folder is the boundary — `variables.tf` is a naming convention, not a special file type.
+
+---
+
+### 16 · Single-file configs
+
+**Could you put variable blocks and resource blocks in the same file instead of splitting them?**
+
+> **Yes** — Terraform behaves the same. Teams split files for **readability**, not because the engine requires it.
+
+---
+
+### 17 · Missing declaration
+
+**I have `terraform.tfvars` but no `variables.tf`. Will `var.filename` work?**
+
+> **No.** `.tfvars` files only **assign values** — they never **declare** variables. Add `variable "filename" { ... }` in a `.tf` file or Terraform reports an **undeclared input variable** error.
+
+---
+
+### 18 · IDE errors
+
+**Why does my editor show a red error on `var.filename` even though I have a value in `terraform.tfvars`?**
+
+> The editor looks for a **`variable "filename"` declaration** in a `.tf` file — not a `.tfvars` assignment. Add the declaration; the squiggle should clear.
+
