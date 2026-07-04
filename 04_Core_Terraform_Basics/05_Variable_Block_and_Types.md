@@ -390,17 +390,64 @@ Every row below uses **one real variable name** from this lesson. The name in **
 
 | Type | Variable name | Declare in `variables.tf` | Use in `main.tf` | Resolves to |
 | --- | --- | --- | --- | --- |
-| `string` | `content` | `variable "content" { type = string default = "I love pet!" }` | `content = var.content` | `"I love pet!"` |
-| `number` | `length` | `variable "length" { type = number default = 2 }` | `length = var.length` *(random provider)* | `2` |
-| `bool` | `favorite_pet` | `variable "favorite_pet" { type = bool default = true }` | `count = var.favorite_pet ? 1 : 0` | `true` |
-| `list(string)` | `prefix` | `variable "prefix" { type = list(string) default = ["Mr", "Mrs", "Sir"] }` | `content = var.prefix[0]` | `"Mr"` |
-| `list(number)` | `ports` | `variable "ports" { type = list(number) default = [80, 443, 8080] }` | `port = var.ports[1]` | `443` |
-| `map(string)` | `file_content` | `variable "file_content" { type = map(string) default = { statement1 = "I love pet!" statement2 = "My favorite pet is Mrs. hiskers" } }` | `content = var.file_content["statement2"]` | `"My favorite pet is Mrs. hiskers"` |
-| `map(number)` | `instance_counts` | `variable "instance_counts" { type = map(number) default = { dev = 1 prod = 5 } }` | `count = var.instance_counts["prod"]` | `5` |
-| `set(string)` | `environments` | `variable "environments" { type = set(string) default = ["dev", "staging", "prod"] }` | `for_each = var.environments` *(no `[0]` — sets are unordered)* | unique strings only |
-| `object({...})` | `bella` | `variable "bella" { type = object({ name = string age = number food = list(string) }) default = { name = "bella" age = 7 food = ["fish", "chicken"] } }` | `content = var.bella.food[0]` | `"fish"` |
-| `tuple([...])` | `pet_tuple` | `variable "pet_tuple" { type = tuple([string, number, bool]) default = ["cat", 7, true] }` | `content = var.pet_tuple[1]` | `7` |
-| `any` | `content` | `variable "content" { default = "I love pet!" }` *(no `type`)* | `content = var.content` | any shape accepted |
+| `string` | `content` | <pre>variable "content" {
+  type    = string
+  default = "I love pet!"
+}</pre> | `content = var.content` | `"I love pet!"` |
+| `number` | `length` | <pre>variable "length" {
+  type    = number
+  default = 2
+}</pre> | `length = var.length` *(random provider)* | `2` |
+| `bool` | `favorite_pet` | <pre>variable "favorite_pet" {
+  type    = bool
+  default = true
+}</pre> | `count = var.favorite_pet ? 1 : 0` | `true` |
+| `list(string)` | `prefix` | <pre>variable "prefix" {
+  type    = list(string)
+  default = ["Mr", "Mrs", "Sir"]
+}</pre> | `content = var.prefix[0]` | `"Mr"` |
+| `list(number)` | `ports` | <pre>variable "ports" {
+  type    = list(number)
+  default = [80, 443, 8080]
+}</pre> | `port = var.ports[1]` | `443` |
+| `map(string)` | `file_content` | <pre>variable "file_content" {
+  type = map(string)
+  default = {
+    statement1 = "I love pet!"
+    statement2 = "My favorite pet is Mrs. hiskers"
+  }
+}</pre> | `content = var.file_content["statement2"]` | `"My favorite pet is Mrs. hiskers"` |
+| `map(number)` | `instance_counts` | <pre>variable "instance_counts" {
+  type = map(number)
+  default = {
+    dev  = 1
+    prod = 5
+  }
+}</pre> | `count = var.instance_counts["prod"]` | `5` |
+| `set(string)` | `environments` | <pre>variable "environments" {
+  type    = set(string)
+  default = ["dev", "staging", "prod"]
+}</pre> | `for_each = var.environments` *(unordered — no `[0]`)* | unique strings only |
+| `object({...})` | `bella` | <pre>variable "bella" {
+  type = object({
+    name = string
+    age  = number
+    food = list(string)
+  })
+  default = {
+    name = "bella"
+    age  = 7
+    food = ["fish", "chicken"]
+  }
+}</pre> | `content = var.bella.food[0]` | `"fish"` |
+| `tuple([...])` | `pet_tuple` | <pre>variable "pet_tuple" {
+  type = tuple([string, number, bool])
+  default = ["cat", 7, true]
+}</pre> | `content = var.pet_tuple[1]` | `7` |
+| `any` | `notes` | <pre>variable "notes" {
+  default = "I love pet!"
+  # type omitted → any
+}</pre> | `content = var.notes` | any shape accepted |
 
 ### Worked example: declaration → resource
 
