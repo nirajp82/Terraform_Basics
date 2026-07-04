@@ -177,26 +177,30 @@ terraform plan  -var-file="variable.tfvars"
 
 Multiple **`-var-file`** flags can be passed; later flags override earlier ones for the same variable.
 
+### Auto-loaded vs manual `.tfvars`
+
+This diagram shows **how files get loaded** — not override order. When the same variable appears in multiple sources, see **§6** for precedence.
+
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
-    START["Need variable values"]
-    START --> AUTO{"Auto-loaded files<br>in config directory?"}
-    AUTO --> TFVARS["terraform.tfvars"]
-    AUTO --> AUTOF["*.auto.tfvars<br>(alphabetical)"]
-    START --> CUSTOM["Custom name<br>e.g. prod.tfvars"]
-    CUSTOM --> VARFILE["terraform apply -var-file=prod.tfvars"]
-    START --> ENV["export TF_VAR_filename=..."]
-    START --> CLI["-var=filename=..."]
+    FILES["Variable definition files (.tfvars)"]
+    FILES --> AUTO["Auto-loaded — no flag needed"]
+    FILES --> MANUAL["Manual — pass -var-file"]
 
-    style START fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
-    style AUTO fill:#374151,stroke:#9ca3af,color:#ffffff
-    style TFVARS fill:#14532d,stroke:#4ade80,color:#ffffff
-    style AUTOF fill:#14532d,stroke:#4ade80,color:#ffffff
-    style CUSTOM fill:#374151,stroke:#9ca3af,color:#ffffff
-    style VARFILE fill:#312e81,stroke:#a78bfa,color:#ffffff
-    style ENV fill:#374151,stroke:#9ca3af,color:#ffffff
-    style CLI fill:#312e81,stroke:#a78bfa,color:#ffffff
+    AUTO --> A1["terraform.tfvars"]
+    AUTO --> A2["*.auto.tfvars<br>all matching files, A→Z order"]
+
+    MANUAL --> M1["Custom name e.g. prod.tfvars"]
+    M1 --> CMD["terraform apply -var-file=prod.tfvars"]
+
+    style FILES fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style AUTO fill:#14532d,stroke:#4ade80,color:#ffffff
+    style MANUAL fill:#374151,stroke:#9ca3af,color:#ffffff
+    style A1 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style A2 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style M1 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style CMD fill:#312e81,stroke:#a78bfa,color:#ffffff
 ```
 
 > **Important:** Never declare `variable "filename" { ... }` blocks inside `.tfvars` files. Declarations belong in **`variables.tf`**; `.tfvars` files only **assign** values.
@@ -205,18 +209,55 @@ flowchart TD
 
 ## 6. Variable Definition Precedence
 
-When the **same variable** receives values from **multiple sources**, Terraform loads them in a fixed order. **Later sources override earlier ones.**
+When the **same variable** receives values from **multiple sources**, Terraform does **not** pick at random. It loads sources in a fixed order. **Each later step replaces the value from the step before** if that step sets the variable.
 
-### Loading order (lowest → highest priority)
+### How to read the ladder
 
-| Order | Source | Example value for `filename` |
-| --- | --- | --- |
-| 1 *(lowest among inputs)* | **`TF_VAR_` environment variable** | `/root/cats.txt` |
-| 2 | **`terraform.tfvars`** | `/root/pets.txt` |
-| 3 | **`*.auto.tfvars`** *(alphabetical; later filenames win within this group)* | `/root/mypet.txt` |
-| 4 *(highest)* | **`-var` / `-var-file` on CLI** | `/root/best-pet.txt` |
+| Concept | Meaning |
+| --- | --- |
+| **Load order** | Terraform applies sources **top to bottom** in the diagram below |
+| **Override** | If a step sets `filename`, it **replaces** whatever value the previous step left |
+| **Winner** | The **last step that sets the variable** is the value used at **plan/apply** |
+| **`default`** | Used only when **no higher step** supplies a value |
 
-If a variable has a **`default`** in `variables.tf` and **no other input**, the default is used. Among external sources, **`default`** is overridden by everything in the table above.
+### Full precedence ladder (lowest → highest)
+
+| Step | Source | Example `filename` | If next step also sets `filename` |
+| --- | --- | --- | --- |
+| 0 *(fallback)* | **`default` in `variables.tf`** | `root/default.txt` | Replaced by any step below |
+| 1 | **`TF_VAR_<name>` environment variable** | `/root/cats.txt` | Replaced by steps 2–4 |
+| 2 | **`terraform.tfvars`** | `/root/pets.txt` | Replaced by steps 3–4 |
+| 3 | **`*.auto.tfvars`** *(A→Z; later files beat earlier in this group)* | `/root/mypet.txt` | Replaced by step 4 |
+| 4 *(highest)* | **`-var` / `-var-file` on CLI** *(last flag wins if both set same variable)* | `/root/best-pet.txt` | **Final value — nothing overrides CLI** |
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    TITLE["Same variable set in many places — read top to bottom"]
+    S0["Step 0 — default<br>root/default.txt<br>LOWEST priority"]
+    S1["Step 1 — TF_VAR_filename<br>/root/cats.txt<br>overrides Step 0"]
+    S2["Step 2 — terraform.tfvars<br>/root/pets.txt<br>overrides Step 1"]
+    S3["Step 3 — variable.auto.tfvars<br>/root/mypet.txt<br>overrides Step 2"]
+    S4["Step 4 — CLI -var / -var-file<br>/root/best-pet.txt<br>overrides Step 3 — HIGHEST"]
+    WIN["Terraform uses this value at plan/apply<br>filename = /root/best-pet.txt"]
+
+    TITLE --> S0
+    S0 -->|"override"| S1
+    S1 -->|"override"| S2
+    S2 -->|"override"| S3
+    S3 -->|"override"| S4
+    S4 --> WIN
+
+    style TITLE fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style S0 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style S1 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style S2 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style S3 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style S4 fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style WIN fill:#14532d,stroke:#4ade80,color:#ffffff
+```
+
+> **Skip steps that are missing.** If you have no `TF_VAR_` set, Terraform starts from `default` (if any), then applies `terraform.tfvars`, then `.auto.tfvars`, then CLI. Only **active** sources participate — but **order stays the same**.
 
 ### Worked example: which value wins?
 
@@ -246,34 +287,27 @@ variable "filename" {
 | `variable.auto.tfvars` | `filename = "/root/mypet.txt"` | `/root/mypet.txt` |
 | CLI | `terraform apply -var="filename=/root/best-pet.txt"` | `/root/best-pet.txt` |
 
-**Winner:** **`/root/best-pet.txt`** — the **`-var`** flag has the **highest priority** and overwrites all previous sources.
+**Winner:** **`/root/best-pet.txt`** — **Step 4 (CLI)** overrides every lower step.
 
-```mermaid
-%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
-flowchart BT
-    ENV["1. TF_VAR_filename<br>/root/cats.txt"]
-    TFVARS["2. terraform.tfvars<br>/root/pets.txt"]
-    AUTO["3. variable.auto.tfvars<br>/root/mypet.txt"]
-    CLI["4. -var flag<br>/root/best-pet.txt"]
+**Walkthrough for this example:**
 
-    ENV --> TFVARS --> AUTO --> CLI
-    CLI --> WIN["filename = /root/best-pet.txt"]
-
-    style ENV fill:#374151,stroke:#9ca3af,color:#ffffff
-    style TFVARS fill:#374151,stroke:#9ca3af,color:#ffffff
-    style AUTO fill:#374151,stroke:#9ca3af,color:#ffffff
-    style CLI fill:#312e81,stroke:#a78bfa,color:#ffffff
-    style WIN fill:#14532d,stroke:#4ade80,color:#ffffff
-```
+| After this source loads | Current `filename` value | Why |
+| --- | --- | --- |
+| Start (no default) | *(unset)* | No `default` in `variables.tf` |
+| `TF_VAR_filename=/root/cats.txt` | `/root/cats.txt` | Step 1 sets it |
+| `terraform.tfvars` adds `/root/pets.txt` | `/root/pets.txt` | Step 2 **overrides** Step 1 |
+| `variable.auto.tfvars` adds `/root/mypet.txt` | `/root/mypet.txt` | Step 3 **overrides** Step 2 |
+| `-var="filename=/root/best-pet.txt"` | **`/root/best-pet.txt`** | Step 4 **overrides** Step 3 — **final value** |
 
 ### Quick precedence cheat sheet
 
 | Question | Answer |
 | --- | --- |
-| CLI vs `terraform.tfvars`? | **CLI wins** (`-var` / `-var-file`) |
-| `terraform.tfvars` vs `TF_VAR_`? | **`terraform.tfvars` wins** |
-| `variable.auto.tfvars` vs `terraform.tfvars`? | **`.auto.tfvars` wins** (loaded after) |
-| Nothing external, but has `default`? | **`default`** is used |
+| CLI vs `terraform.tfvars`? | **CLI wins** — Step 4 overrides Step 2 |
+| `terraform.tfvars` vs `TF_VAR_`? | **`terraform.tfvars` wins** — Step 2 overrides Step 1 |
+| `variable.auto.tfvars` vs `terraform.tfvars`? | **`.auto.tfvars` wins** — Step 3 overrides Step 2 |
+| `-var` vs `-var-file` on same command? | **Last flag on the command line wins** — both are Step 4 |
+| Nothing external, but has `default`? | **`default`** (Step 0) is used |
 | Nothing at all? | **Interactive prompt** (or error in non-interactive mode) |
 
 ---
