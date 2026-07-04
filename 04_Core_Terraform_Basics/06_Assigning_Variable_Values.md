@@ -27,71 +27,13 @@ That is **one** way to pass a value. The **`default`** argument is **optional** 
 | **`*.auto.tfvars`** | Project file | Yes — all matching files |
 | **Custom `.tfvars` + `-var-file`** | Any named file | No — requires `-var-file` |
 
-You can use **any combination** of these. When the same variable is set in multiple places, Terraform picks one value using **precedence** (see §7).
+You can use **any combination** of these. When the same variable is set in multiple places, Terraform picks one value using **precedence** (see §6).
 
-> **Declare before you assign.** Every method in the table above only **sets a value** for a variable that is **already declared**. None of them replace a `variable "name" { ... }` block. See §2.
-
----
-
-## 2. Declare First — You Still Need a `variable` Block
-
-**Yes — you get an error** if you use `var.filename` in `main.tf` but never declare `variable "filename"` anywhere in your configuration.
-
-A common mistake in this lecture’s lab layout: `main.tf` references **`var.filename`**, and **`terraform.tfvars`** / **`*.auto.tfvars`** assign a value for **`filename`**, but there is **no `variables.tf`** (and no `variable` block in any other `.tf` file). That configuration is **incomplete**.
-
-```hcl
-# main.tf — uses the variable
-resource "local_file" "games" {
-  filename = var.filename
-  content  = "football"
-}
-```
-
-```hcl
-# terraform.tfvars — assigns a value ONLY (does not declare)
-filename = "root/pets.txt"
-```
-
-```hcl
-# basket.auto.tfvars — also assigns only
-filename = "root/basket.txt"
-```
-
-**Missing — required:**
-
-```hcl
-# variables.tf (or any .tf file in the same directory)
-variable "filename" {
-  type = string
-}
-```
-
-| File | Role | Can it declare `variable "filename"`? | Can it assign `filename = "..."`? |
-| --- | --- | --- | --- |
-| **`variables.tf`** | Declare inputs | **Yes** — `variable "filename" { ... }` | No |
-| **`main.tf`** | Resources | Yes *(possible but not conventional)* | No |
-| **`terraform.tfvars`** | Assign values | **No** | **Yes** |
-| **`*.auto.tfvars`** | Assign values | **No** | **Yes** |
-| **`-var` / `TF_VAR_`** | Assign values | **No** | **Yes** |
-
-Without a declaration, Terraform (and most IDE extensions) report an **undeclared input variable**:
-
-```text
-Error: Reference to undeclared input variable
-
-  on main.tf line 2, in resource "local_file" "games":
-   2:   filename = var.filename
-
-An input variable with the name "filename" has not been declared.
-```
-
-In VS Code / Cursor, **`var.filename`** often shows a **red squiggle** for the same reason — the language server cannot find a matching `variable "filename"` block.
-
-> **`variables.tf` is a convention, not a Terraform requirement.** The declaration can live in **`main.tf`**, **`inputs.tf`**, or any other **`.tf`** file in the **same configuration directory**. Terraform merges all `.tf` files automatically. What matters is that a **`variable`** block exists — not the filename.
+> **Prerequisite:** Every method below only **assigns a value** to a variable that is **already declared** with a `variable "name" { ... }` block in a `.tf` file. If you use `var.filename` without a declaration — even with `.tfvars` present — Terraform errors. See **`04_Input_Variables.md` §2** (*Declare before assign*).
 
 ---
 
-## 3. No Default → Interactive Prompt
+## 2. No Default → Interactive Prompt
 
 If a variable has **no `default`** and **no value** from CLI, environment, or `.tfvars`, Terraform asks you at the terminal when you run **`terraform plan`** or **`terraform apply`**.
 
@@ -135,7 +77,7 @@ var.content
 
 ---
 
-## 4. Command-Line Flags: `-var`
+## 3. Command-Line Flags: `-var`
 
 Pass values directly on the Terraform command with **`-var`** using **`name=value`** syntax:
 
@@ -159,7 +101,7 @@ terraform apply -var="filename=root/pets.txt" -var="length=2"
 
 ---
 
-## 5. Environment Variables: `TF_VAR_<name>`
+## 4. Environment Variables: `TF_VAR_<name>`
 
 Export an environment variable prefixed with **`TF_VAR_`** followed by the **exact variable name**:
 
@@ -190,7 +132,7 @@ Environment variables are common in **CI/CD** (GitHub Actions, Jenkins, Azure De
 
 ---
 
-## 6. Variable Definition Files (`.tfvars`)
+## 5. Variable Definition Files (`.tfvars`)
 
 When you manage **many variables**, put assignments in a **variable definition file** instead of repeating **`-var`** on every command.
 
@@ -261,7 +203,7 @@ flowchart TD
 
 ---
 
-## 7. Variable Definition Precedence
+## 6. Variable Definition Precedence
 
 When the **same variable** receives values from **multiple sources**, Terraform loads them in a fixed order. **Later sources override earlier ones.**
 
@@ -336,11 +278,10 @@ flowchart BT
 
 ---
 
-## 8. Hands-On Lab
+## 7. Hands-On Lab
 
-In your configuration directory (same project as the Input Variables lesson):
+In your configuration directory (same project as the Input Variables lesson — ensure every `var.*` reference is **declared** in `variables.tf` per **`04_Input_Variables.md` §2**):
 
-0. Ensure **`variables.tf`** declares every variable you reference with **`var.*`** — `.tfvars` files alone are not enough.
 1. Remove **`default`** from `variable "filename"` in `variables.tf`.
 2. Run **`terraform apply`** — enter values at the prompts; confirm the file is created.
 3. Set **`TF_VAR_filename`** in your shell and run **`terraform plan`** — confirm the plan uses the env value (no prompt).
@@ -354,7 +295,7 @@ In your configuration directory (same project as the Input Variables lesson):
 
 ### Topic Summary: Assigning Variable Values
 
-Input variables can receive values from **`default`**, **interactive prompts**, **`-var`**, **`TF_VAR_<name>` environment variables**, and **`.tfvars`** files. Files named **`terraform.tfvars`** or ending in **`.auto.tfvars`** are **auto-loaded**; other `.tfvars` names require **`-var-file`**. All assignment methods require a prior **`variable "name" { ... }` declaration** in a `.tf` file — `.tfvars` files alone cannot declare variables. When multiple sources set the same variable, Terraform applies **precedence**: environment variables load first, then **`terraform.tfvars`**, then **`*.auto.tfvars`** (alphabetical), and **`-var` / `-var-file`** on the CLI **win last**. Use non-interactive methods (`.tfvars`, env vars, CLI) for repeatable and automated workflows.
+Input variables can receive values from **`default`**, **interactive prompts**, **`-var`**, **`TF_VAR_<name>` environment variables**, and **`.tfvars`** files — but only after the variable is **declared** in a `.tf` file (see **`04_Input_Variables.md`**). Files named **`terraform.tfvars`** or ending in **`.auto.tfvars`** are **auto-loaded**; other `.tfvars` names require **`-var-file`**. When multiple sources set the same variable, Terraform applies **precedence**: environment variables load first, then **`terraform.tfvars`**, then **`*.auto.tfvars`** (alphabetical), and **`-var` / `-var-file`** on the CLI **win last**.
 
 ### Knowledge Check Q&A
 
@@ -388,16 +329,4 @@ Input variables can receive values from **`default`**, **interactive prompts**, 
 
 **Q: What syntax belongs in a `.tfvars` file?**
 
-**A:** **Assignments only** — `name = value` lines in HCL syntax. No `variable` blocks.
-
-**Q: I have `terraform.tfvars` and `*.auto.tfvars` but no `variables.tf`. Will `var.filename` work?**
-
-**A:** **No.** `.tfvars` files only **assign values** — they do **not declare** variables. You must add a `variable "filename" { ... }` block in a **`.tf` file** (typically **`variables.tf`**) in the same directory. Without it, Terraform reports an **undeclared input variable** error and your IDE may underline `var.filename`.
-
-**Q: Is `variables.tf` mandatory?**
-
-**A:** The **filename is not mandatory** — Terraform loads any **`.tf`** file in the configuration directory. The **`variable` block is mandatory** if you reference `var.<name>`. **`variables.tf`** is simply the industry-standard place to put declarations.
-
-**Q: Why does my editor show a red error on `var.filename` even though I have a value in `terraform.tfvars`?**
-
-**A:** The editor checks for a **`variable "filename"` declaration**, not a `.tfvars` assignment. Add the declaration in a `.tf` file; the squiggle should clear once the block exists.
+**A:** **Assignments only** — `name = value` lines in HCL syntax. No `variable` blocks. To declare variables, see **`04_Input_Variables.md` §2**.

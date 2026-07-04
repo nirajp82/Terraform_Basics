@@ -196,8 +196,62 @@ Splitting into `variables.tf` + `main.tf` is **industry practice** for readabili
 | Variable declared in **parent or sibling** folder | **Fails** — different configuration |
 | Variable in **subfolder** without `module` block | **Fails** — subfolder not auto-loaded |
 | Typo: `variable "content"` but `var.contnt` | **Fails** — name mismatch |
+| **`var.filename` in `main.tf` but no `variable "filename"`** — only `.tfvars` assign values | **Fails** — undeclared input variable |
 
 > **Remember:** Same configuration directory + `.tf` extension = **one shared namespace**. `var.content` in any `.tf` file can see `variable "content"` declared in any other `.tf` file in that same directory.
+
+### Declare before assign — `.tfvars` alone is not enough
+
+**Yes — you get an error** if you reference `var.filename` without declaring `variable "filename"` in any **`.tf`** file. This is a common lab mistake: `main.tf` uses the variable, and **`terraform.tfvars`** / **`*.auto.tfvars`** assign a value, but there is **no `variables.tf`** (and no `variable` block anywhere else).
+
+```hcl
+# main.tf — references the variable
+resource "local_file" "games" {
+  filename = var.filename
+  content  = "football"
+}
+```
+
+```hcl
+# terraform.tfvars — assigns ONLY (does not declare)
+filename = "root/pets.txt"
+```
+
+```hcl
+# basket.auto.tfvars — also assigns only
+filename = "root/basket.txt"
+```
+
+**Missing — required:**
+
+```hcl
+# variables.tf (or any .tf file in the same directory)
+variable "filename" {
+  type = string
+}
+```
+
+| File | Role | Declares `variable "filename"`? | Assigns `filename = "..."`? |
+| --- | --- | --- | --- |
+| **`variables.tf`** | Input declarations | **Yes** | No |
+| **`main.tf`** | Resources | Yes *(possible but not conventional)* | No |
+| **`terraform.tfvars`** | Values | **No** | **Yes** |
+| **`*.auto.tfvars`** | Values | **No** | **Yes** |
+
+Without a declaration, Terraform reports:
+
+```text
+Error: Reference to undeclared input variable
+
+  on main.tf line 2, in resource "local_file" "games":
+   2:   filename = var.filename
+
+An input variable with the name "filename" has not been declared.
+```
+
+In VS Code / Cursor, **`var.filename`** may show a **red squiggle** for the same reason — the language server looks for a **`variable`** block, not a `.tfvars` assignment.
+
+> **Order of operations:** (1) **Declare** with `variable "name" { ... }` in a `.tf` file → (2) **Assign** via `default`, `.tfvars`, `-var`, or `TF_VAR_`. Assignment methods are covered in **`06_Assigning_Variable_Values.md`**.
 
 ---
 
@@ -602,7 +656,7 @@ In your configuration directory:
 
 ### Topic Summary: Input Variables
 
-Hardcoded values in resource blocks limit reuse. **Input variables** declared in **`variables.tf`** with optional **`default`** values parameterize **argument values**, string templates, and nested fields — but **not** resource type or resource name labels (those must be literal strings). All `.tf` files in the **same directory** are **auto-merged into one module** — no import needed — so `var.content` in `main.tf` resolves to `variable "content"` in `variables.tf`. Reference values with **`var.<name>`** using **snake_case** naming. Supply values via **`default`**, auto-loaded **`terraform.tfvars`**, **`-var-file`**, **`-var`**, or **`TF_VAR_`**. Update **`variables.tf`** or **`.tfvars`** and run **`terraform apply`** without changing resource block structure in `main.tf`.
+Hardcoded values in resource blocks limit reuse. **Input variables** must be **declared** with a **`variable`** block in a **`.tf`** file before you reference **`var.<name>`** — `.tfvars` and other assignment files only supply values, they do not declare variables. Declarations typically live in **`variables.tf`** with optional **`default`** values, parameterizing **argument values**, string templates, and nested fields — but **not** resource type or resource name labels (those must be literal strings). All `.tf` files in the **same directory** are **auto-merged into one module** — no import needed. Reference values with **`var.<name>`** using **snake_case** naming. Supply values via **`default`**, auto-loaded **`terraform.tfvars`**, **`-var-file`**, **`-var`**, or **`TF_VAR_`**. Update **`variables.tf`** or **`.tfvars`** and run **`terraform apply`** without changing resource block structure in `main.tf`.
 
 ### Knowledge Check Q&A
 
@@ -669,3 +723,15 @@ Hardcoded values in resource blocks limit reuse. **Input variables** declared in
 **Q: Could you put variable blocks and resource blocks in the same file instead of splitting them?**
 
 **A:** **Yes.** Terraform would behave the same. Teams split into `variables.tf` and `main.tf` for **readability and organization**, not because the engine requires separate files.
+
+**Q: I have `terraform.tfvars` and `*.auto.tfvars` but no `variables.tf`. Will `var.filename` work?**
+
+**A:** **No.** `.tfvars` files only **assign values** — they do **not declare** variables. Add `variable "filename" { ... }` in a **`.tf` file** (typically **`variables.tf`**) in the same directory. Without it, Terraform reports an **undeclared input variable** error.
+
+**Q: Is the filename `variables.tf` mandatory?**
+
+**A:** **No** — the **`variable` block is mandatory** if you use `var.<name>`, but it can live in any **`.tf`** file Terraform merges in that directory. **`variables.tf`** is industry convention for where to put declarations.
+
+**Q: Why does my editor show a red error on `var.filename` even though I have a value in `terraform.tfvars`?**
+
+**A:** The editor checks for a **`variable "filename"` declaration**, not a `.tfvars` assignment. Add the declaration in a `.tf` file; the squiggle should clear once the block exists.
