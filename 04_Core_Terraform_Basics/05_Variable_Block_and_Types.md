@@ -386,19 +386,71 @@ Incorrect attribute value type: length must be 3, but have 4.
 
 ## 9. Quick Reference: All Types
 
-| Type | Declaration example | Access example |
+Every row below uses **one real variable name** from this lesson. The name in **`variable "..."`** is what you choose; **`var.<same_name>`** is how you read it in resources. Keys like **`dev`** or **`statement2`** are labels **inside** a map — not separate variables.
+
+| Type | Variable name | Declare in `variables.tf` | Use in `main.tf` | Resolves to |
+| --- | --- | --- | --- | --- |
+| `string` | `content` | `variable "content" { type = string default = "I love pet!" }` | `content = var.content` | `"I love pet!"` |
+| `number` | `length` | `variable "length" { type = number default = 2 }` | `length = var.length` *(random provider)* | `2` |
+| `bool` | `favorite_pet` | `variable "favorite_pet" { type = bool default = true }` | `count = var.favorite_pet ? 1 : 0` | `true` |
+| `list(string)` | `prefix` | `variable "prefix" { type = list(string) default = ["Mr", "Mrs", "Sir"] }` | `content = var.prefix[0]` | `"Mr"` |
+| `list(number)` | `ports` | `variable "ports" { type = list(number) default = [80, 443, 8080] }` | `port = var.ports[1]` | `443` |
+| `map(string)` | `file_content` | `variable "file_content" { type = map(string) default = { statement1 = "I love pet!" statement2 = "My favorite pet is Mrs. hiskers" } }` | `content = var.file_content["statement2"]` | `"My favorite pet is Mrs. hiskers"` |
+| `map(number)` | `instance_counts` | `variable "instance_counts" { type = map(number) default = { dev = 1 prod = 5 } }` | `count = var.instance_counts["prod"]` | `5` |
+| `set(string)` | `environments` | `variable "environments" { type = set(string) default = ["dev", "staging", "prod"] }` | `for_each = var.environments` *(no `[0]` — sets are unordered)* | unique strings only |
+| `object({...})` | `bella` | `variable "bella" { type = object({ name = string age = number food = list(string) }) default = { name = "bella" age = 7 food = ["fish", "chicken"] } }` | `content = var.bella.food[0]` | `"fish"` |
+| `tuple([...])` | `pet_tuple` | `variable "pet_tuple" { type = tuple([string, number, bool]) default = ["cat", 7, true] }` | `content = var.pet_tuple[1]` | `7` |
+| `any` | `content` | `variable "content" { default = "I love pet!" }` *(no `type`)* | `content = var.content` | any shape accepted |
+
+### Worked example: declaration → resource
+
+The names in the **Declare** and **Use** columns always match. For a `map(number)`, the variable is **`instance_counts`**, keys are **`dev`** and **`prod`**, and you read one key with **`var.instance_counts["prod"]`** — not a different name like `counts`.
+
+```hcl
+# variables.tf
+variable "file_content" {
+  type = map(string)
+  default = {
+    statement1 = "I love pet!"
+    statement2 = "My favorite pet is Mrs. hiskers"
+  }
+}
+
+variable "instance_counts" {
+  type = map(number)
+  default = {
+    dev  = 1   # key "dev"  → value 1
+    prod = 5   # key "prod" → value 5
+  }
+}
+
+variable "ports" {
+  type    = list(number)
+  default = [80, 443, 8080]
+}
+```
+
+```hcl
+# main.tf
+resource "local_file" "pet" {
+  filename = "root/pet.txt"
+  content  = var.file_content["statement2"]
+  #         variable name ─────┘              └── map key (not a variable)
+}
+
+# var.instance_counts["prod"] reads key "prod" from map instance_counts → 5
+# var.ports[1] reads index 1 from list ports → 443 (index 0 would be 80)
+```
+
+| Expression | What it means | Value |
 | --- | --- | --- |
-| `string` | `type = string` | `var.name` |
-| `number` | `type = number` | `var.length` |
-| `bool` | `type = bool` | `var.enabled` |
-| `list(string)` | `default = ["a", "b"]` | `var.list[0]` |
-| `list(number)` | `default = [1, 2]` | `var.ports[1]` |
-| `map(string)` | `default = { k = "v" }` | `var.map["k"]` |
-| `map(number)` | `default = { dev = 1 }` | `var.counts["dev"]` |
-| `set(string)` | no duplicates | set membership |
-| `object({...})` | named fields | `var.obj.field` |
-| `tuple([...])` | fixed length + mixed types | `var.tuple[0]` |
-| `any` | *(type omitted)* | no validation |
+| `var.file_content` | The whole map | `{ statement1 = "...", statement2 = "..." }` |
+| `var.file_content["statement2"]` | Value for key **`statement2`** | `"My favorite pet is Mrs. hiskers"` |
+| `var.instance_counts` | The whole map | `{ dev = 1, prod = 5 }` |
+| `var.instance_counts["dev"]` | Value for key **`dev`** | `1` |
+| `var.instance_counts["prod"]` | Value for key **`prod`** | `5` |
+| `var.ports[0]` | First list element (index starts at 0) | `80` |
+| `var.ports[1]` | Second list element | `443` |
 
 ---
 
