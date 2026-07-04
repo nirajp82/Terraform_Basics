@@ -5,6 +5,9 @@ This project documents a **Terraform for Beginners** course (Udemy). Each lesson
 **Reference examples (read these before writing):**
 - `02_Intro_IAC/03_Terraform.md` — deep conceptual walkthrough with a worked migration example
 - `03_GettingStarted/02_HCL_Basics.md` — syntax breakdown, tables, workflow steps, code anatomy
+- `04_Core_Terraform_Basics/08_Resource_Dependencies.md` — current **Knowledge Check** format specifically (numbered items, blockquote answers)
+
+> The two files above predate the numbered/blockquote Knowledge Check convention and still use the older flat `### Knowledge Check Q&A` style. Follow them for prose, structure, and tone — but follow `08_Resource_Dependencies.md` (or the spec in **D. Knowledge Check** below) for the Knowledge Check section itself.
 
 ---
 
@@ -233,13 +236,24 @@ Include:
 
 ---
 
+## Module `readme.md` (Chapter Index)
+
+Each module folder (e.g. `02_Intro_IAC/`, `03_GettingStarted/`, `04_Core_Terraform_Basics/`) has its own lowercase **`readme.md`** — distinct from the repo-root `README.md` — that acts as a condensed **chapter summary and Q&A recap** across every lesson in that folder. See `02_Intro_IAC/readme.md` for the reference example.
+
+- Filename is `readme.md` (lowercase), never `README.md` — this distinguishes the per-module index from the repo-root file.
+- Structure: `# Chapter Summary: <Module Topic>` title, then condensed `##` sections mirroring the module's lessons (definitions, tables, key terminology pulled from each lesson), followed by a flat `## Knowledge Check Q&A` section using `**Q:** ... **A:** ...` pairs — no numbering or blockquotes. This intentionally keeps the older, denser format since it recaps a whole module, not a single lesson.
+- Update this file whenever a lesson is added to or changed in that module folder. Keep it a condensed summary — do not duplicate each lesson's full content.
+- Do not confuse this with the repo-root `README.md`, which is a minimal top-level pointer (course link) and is only touched when the user explicitly asks for a repo-level index update.
+
+---
+
 ## What NOT to Do
 
 - Do not create a wall of transcript quotes.
 - Do not skip the Topic Summary or Knowledge Check Q&A.
 - Do not invent facts, commands, or APIs not supported by the transcript.
 - Do not add unrelated modules, marketing content, or lengthy preambles.
-- Do not create or edit `README.md` unless the user asks for a chapter index update.
+- Do not create or edit the repo-root `README.md` unless the user asks for a repo-level index update. Module-level `readme.md` files follow the separate convention above.
 
 ---
 
