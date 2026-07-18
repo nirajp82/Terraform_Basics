@@ -391,4 +391,20 @@ Answer each question on your own first, then read the explanation below it.
 > 2. **Refresh** (every later `plan`/`apply`, unconditionally) — Terraform uses the stored `filename` to read the file, which returns its current state in one pass, or reports it missing.
 > 3. **Compare** (always runs after refresh) — Terraform checks the refreshed state's attribute values against what configuration declares, to decide: no changes, update in place, replace, or create.
 
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    CREATE["1. Create — once<br>returns filename, content, id"] --> STATE0["terraform.tfstate written"]
+    STATE0 --> REFRESH["2. Refresh — every later plan/apply<br>reads root/pet.txt via stored filename"]
+    REFRESH --> COMPARE["3. Compare — always after refresh<br>refreshed state vs. main.tf"]
+    COMPARE --> DECISION["no changes / update in place /<br>replace / create"]
+    DECISION -.->|"next plan/apply"| REFRESH
+
+    style CREATE fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style STATE0 fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style REFRESH fill:#374151,stroke:#9ca3af,color:#ffffff
+    style COMPARE fill:#374151,stroke:#9ca3af,color:#ffffff
+    style DECISION fill:#312e81,stroke:#a78bfa,color:#ffffff
+```
+
 ---
