@@ -111,6 +111,11 @@ It's fair to ask: concretely, *how* does Terraform check whether an EC2 instance
    - **Not found** (AWS returns an error like `InvalidInstanceID.NotFound`) — Terraform concludes the instance no longer exists. It removes that resource from the refreshed state.
 4. **Then the compare step runs as always:** `main.tf` still says `aws_instance.web` should exist; refreshed state now says it doesn't (case 3b) or confirms it does with current attributes (case 3a). A "not found" result is exactly what turns into the **create** plan described in Section 2a's drift example.
 
+**Two details that are easy to get backwards:**
+
+- **Refresh is one call, not one call per argument.** The Read/Describe API call returns the resource's **entire current attribute set** in a single response — `ami`, `instance_type`, IP addresses, tags, everything at once. Terraform isn't asking "does `instance_type` still say `t3.micro`?" as a separate question per argument; it gets the whole object back and updates every attribute in its in-memory copy at once.
+- **Refresh always runs first, unconditionally — it is never triggered *because* a diff was found.** Terraform has no way to know there's a difference until *after* it refreshes. The order is always: refresh (unconditional) → *then* compare (which is what discovers whether there's a diff at all). "If there's a diff, refresh" has the causality backwards.
+
 > **The ID is the whole trick.** Terraform never re-derives "which real object is mine" from scratch — it stores the provider-assigned ID once, at creation, and from then on every check is a direct lookup by that ID. `random_pet`, `local_file`, `aws_instance`, `aws_db_instance` — every resource type follows this same pattern, only the specific "describe by ID" API call changes per provider.
 
 ---
@@ -418,5 +423,37 @@ Answer each question on your own first, then read the explanation below it.
 **Concretely, how does Terraform know whether a specific EC2 instance created six months ago is still there — does it search by name or tags?**
 
 > Neither. Terraform looks up the exact **`id`** that was recorded in state back when the instance was created (e.g. `i-0abcd1234efgh5678`), and calls the provider's **Read** operation for that specific ID (a `DescribeInstances` call filtered to it, for EC2). If the API returns the instance, it still exists; if it returns "not found," Terraform treats it as gone. The stored ID — not a name or tag search — is what makes the lookup possible.
+
+---
+
+## FAQ
+
+Common points of confusion, answered directly.
+
+---
+
+**Does the create call really return *just* the ID, or more than that?**
+
+> More than that. The provider's create API call (e.g. `RunInstances`) returns the resource's **entire initial attribute set** — the unique `id` plus every other attribute (arguments you set and computed values AWS fills in). Terraform stores all of it in `terraform.tfstate`, not only the `id`. The `id` is what matters for *finding* the resource again later; the rest of the stored attributes are what later comparisons are checked against.
+
+---
+
+**During refresh, does Terraform check each argument one at a time?**
+
+> No — it's a **single Read call per resource**, using the stored `id`. That one API response (e.g. one `DescribeInstances` call) returns every current attribute of the real object at once. Terraform doesn't make a separate round-trip per argument; it overwrites its whole in-memory copy of that resource's attributes from that one response.
+
+---
+
+**Does Terraform only refresh when it suspects something changed?**
+
+> No — refresh is **unconditional**. It runs at the start of every `plan` and `apply`, before any comparison happens, regardless of whether anything actually changed. Terraform can't know whether there's a difference *until after* refreshing — so "compare, then refresh if there's a diff" has the order backwards. The correct order is always **refresh, then compare**.
+
+---
+
+**So what's the full, correct sequence, end to end?**
+
+> 1. **Create** (once) — the provider's create call returns a unique `id` plus the resource's full initial attributes; Terraform stores all of it in `terraform.tfstate`.
+> 2. **Refresh** (every later `plan`/`apply`, unconditionally) — Terraform takes the stored `id` and makes **one** Read call to the provider, which returns the object's current attributes in a single response (or "not found").
+> 3. **Compare** (always runs after refresh) — Terraform checks the refreshed state's attribute values against what `main.tf` declares, argument by argument, to decide: no changes, update in place, replace, or create.
 
 ---
