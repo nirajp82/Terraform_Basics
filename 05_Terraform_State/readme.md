@@ -28,6 +28,22 @@ Every subsequent `plan` or `apply` refreshes state first, then compares it again
 
 Regardless of how many resources or providers a configuration uses, Terraform **always** creates and maintains a state file after `apply`. It is not an optional feature.
 
+## 6. State Is a Blueprint of Everything Terraform Manages
+
+Every resource Terraform creates gets a unique ID recorded in state — including **logical** resources like `random_pet` that never touch disk or a cloud API, not just resources with a real-world footprint.
+
+## 7. State Tracks Dependency Metadata
+
+Beyond mapping resources to reality, state also records **resource dependencies** (implicit and explicit). This matters most when resources are **removed from configuration**: the reference expression that originally declared the dependency is gone, but state still remembers it, so Terraform can still destroy dependents before dependencies.
+
+## 8. State Improves Performance
+
+Refreshing state means asking every provider to re-read every tracked resource — impractical at the scale of hundreds or thousands of resources. Terraform treats state as a **cache of attribute values** it can trust without reconciling; the **`-refresh=false`** flag skips reconciliation entirely and compares configuration directly against cached state.
+
+## 9. State Enables Team Collaboration
+
+A local `terraform.tfstate` file works for solo use but breaks down for teams — everyone needs the latest state, and no two people can run Terraform concurrently against it, or the result is unpredictable errors. The fix is a **remote state store** (Amazon S3, HashiCorp Consul, Terraform Cloud) shared securely across the team.
+
 ---
 
 ## Knowledge Check Q&A
@@ -49,3 +65,15 @@ Regardless of how many resources or providers a configuration uses, Terraform **
 
 **Q: Is a state file optional for small configurations with just one or two resources?**
 **A:** No. Terraform always creates and relies on a state file after `apply`, no matter how small the configuration is — it's fundamental to how Terraform tracks infrastructure.
+
+**Q: Does a logical resource like `random_pet` get a unique ID recorded in state, even though it doesn't create anything in the real world?**
+**A:** Yes. State tracks every resource Terraform manages, regardless of whether it has a real-world footprint.
+
+**Q: If you delete a resource and its dependency from your `.tf` files, how does Terraform know which one to destroy first?**
+**A:** From the dependency metadata already recorded in state when the resources were created — that metadata persists even after the configuration lines that declared it are gone.
+
+**Q: Why doesn't Terraform refresh state against the real world before every single command on large infrastructures?**
+**A:** Reconciling hundreds or thousands of resources across multiple providers can take seconds to minutes. Terraform instead treats state as a cache it can trust, and `-refresh=false` skips reconciliation entirely.
+
+**Q: Why is a local `terraform.tfstate` file a problem for teams?**
+**A:** Every member needs the latest state, and no two people can safely run Terraform at the same time against it — violating either causes unpredictable errors. Teams should use a remote state store like S3, Consul, or Terraform Cloud instead.
