@@ -43,7 +43,4 @@ Each module folder below has its own `readme.md` chapter summary, and each numbe
 ### [07 — Mutable and Immutable Infrastructure](07_Mutable_And_Immutable_Infrastructure/readme.md)
 
 1. [Mutable vs. Immutable Infrastructure](07_Mutable_And_Immutable_Infrastructure/01_Mutable_vs_Immutable_Infrastructure.md)
-
-### [08 — Lifecycle Rules](08_Lifecycle_Rules/readme.md)
-
-1. [Lifecycle Rules](08_Lifecycle_Rules/01_Lifecycle_Rules.md)
+2. [Lifecycle Rules](07_Mutable_And_Immutable_Infrastructure/02_Lifecycle_Rules.md)

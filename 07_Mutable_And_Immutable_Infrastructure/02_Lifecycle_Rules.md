@@ -1,12 +1,12 @@
 # Lifecycle Rules
 
-`07_Mutable_And_Immutable_Infrastructure/01_Mutable_vs_Immutable_Infrastructure.md` established that Terraform defaults to destroying a resource and creating its replacement rather than updating it in place. This document covers the **`lifecycle`** block — the three arguments that let a resource override that default behavior: `create_before_destroy`, `prevent_destroy`, and `ignore_changes`.
+The previous lesson established that Terraform defaults to destroying a resource and creating its replacement rather than updating it in place. This document covers the **`lifecycle`** block — the three arguments that let a resource override that default behavior: `create_before_destroy`, `prevent_destroy`, and `ignore_changes`.
 
 ---
 
 ## 1. Recap: Destroy-Then-Create Is the Default
 
-Changing `local_file.pet`'s `file_permission` from `777` to `700` and running `terraform apply` destroys the original file first, then creates a new one with the updated permission — the immutable-infrastructure behavior covered in the previous chapter.
+Changing `local_file.pet`'s `file_permission` from `777` to `700` and running `terraform apply` destroys the original file first, then creates a new one with the updated permission — the immutable-infrastructure behavior covered in the previous lesson.
 
 That default order isn't always what's wanted. Sometimes the updated resource should be created **before** the old one is deleted. Sometimes a resource shouldn't be deleted at all, even if configuration changes in a way that would normally force it. Both are controlled with lifecycle rules.
 

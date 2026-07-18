@@ -1,6 +1,6 @@
 # Terraform State Considerations
 
-`01_Terraform_State.md` and `02_Purpose_of_Terraform_State.md` established state as Terraform's single source of truth for what's actually deployed. This document covers the operational cautions that come with that: the sensitive data state holds, where state should (and shouldn't) live, and why you should never hand-edit it.
+State is Terraform's single source of truth for what's actually deployed, as established in `01_Terraform_State.md` and `02_Purpose_of_Terraform_State.md`. This document covers the operational cautions that come with that: the sensitive data state holds, where state should (and shouldn't) live, and why you should never hand-edit it.
 
 ---
 
@@ -79,7 +79,7 @@ flowchart LR
     style BACKEND fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
 ```
 
-`02_Purpose_of_Terraform_State.md` already introduced remote state stores for a different reason — a local state file doesn't scale past one person, since teammates need the latest copy and can't safely run Terraform concurrently against it. This lesson adds a second, independent reason to reach the same solution: even a solo user should avoid committing state to Git, because of what it contains. Working with remote backends in practice is covered in a dedicated section later in the course.
+Remote state stores were already introduced for a different reason (see `02_Purpose_of_Terraform_State.md`) — a local state file doesn't scale past one person, since teammates need the latest copy and can't safely run Terraform concurrently against it. This lesson adds a second, independent reason to reach the same solution: even a solo user should avoid committing state to Git, because of what it contains. Working with remote backends in practice is covered in a dedicated section later in the course.
 
 ---
 

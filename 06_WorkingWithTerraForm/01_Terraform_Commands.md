@@ -89,7 +89,7 @@ This downloads (or copies from the local cache) every provider plugin the config
 
 ## 5. `terraform output` — Printing Output Variables
 
-`09_Output_Variables.md` covered declaring `output` blocks. To print them after an apply:
+Declaring `output` blocks was covered in `09_Output_Variables.md`. To print their values after an apply:
 
 ```bash
 terraform output
@@ -109,7 +109,7 @@ terraform output pet_name
 terraform refresh
 ```
 
-`01_Terraform_State.md` established that `plan` and `apply` both perform an implicit refresh — reading the real-world object for every tracked resource and updating Terraform's in-memory copy of state, before comparing anything against configuration. `terraform refresh` triggers that same reconciliation directly, on demand, and **writes the result to `terraform.tfstate`** rather than only holding it in memory for the current command.
+Recall from `01_Terraform_State.md` that `plan` and `apply` both perform an implicit refresh — reading the real-world object for every tracked resource and updating Terraform's in-memory copy of state, before comparing anything against configuration. `terraform refresh` triggers that same reconciliation directly, on demand, and **writes the result to `terraform.tfstate`** rather than only holding it in memory for the current command.
 
 This matters when a resource has been changed outside Terraform's control — a manual edit, someone else's script, a console change. `refresh` picks up that drift and updates the state file to match, so the *next* `plan` or `apply` has accurate data to compare against. `refresh` never modifies real infrastructure — only the state file.
 

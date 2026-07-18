@@ -6,7 +6,7 @@ This document explains **why** Terraform destroys a resource and recreates it in
 
 ## 1. Recap: Terraform Already Does This
 
-`07_Resource_Attributes_and_References.md` showed that changing `local_file.pet`'s `content` forces Terraform to destroy the old file and create a new one, rather than editing it in place — because `local_file` has no update path at all. The same thing happens with a permissions change: updating `file_permission` from `777` to `700` destroys the original file and creates a new one with the updated permission, instead of running the equivalent of `chmod` on the existing file.
+Recall from `07_Resource_Attributes_and_References.md` that changing `local_file.pet`'s `content` forces Terraform to destroy the old file and create a new one, rather than editing it in place — because `local_file` has no update path at all. The same thing happens with a permissions change: updating `file_permission` from `777` to `700` destroys the original file and creates a new one with the updated permission, instead of running the equivalent of `chmod` on the existing file.
 
 This lesson explains the reasoning behind that default: destroy-then-create isn't a `local_file` quirk, it's Terraform's general philosophy as a provisioning tool, rooted in the **immutable infrastructure** model.
 

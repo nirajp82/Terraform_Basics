@@ -6,7 +6,7 @@ This document explains **why** Terraform state matters beyond just "it exists" â
 
 ## 1. Recap: State Is a Blueprint
 
-`01_Terraform_State.md` showed **how** `terraform.tfstate` maps your configuration to real-world infrastructure and how Terraform compares configuration, state, and reality to build an execution plan whenever **drift** is detected.
+Recall from `01_Terraform_State.md` **how** `terraform.tfstate` maps your configuration to real-world infrastructure, and how Terraform compares configuration, state, and reality to build an execution plan whenever **drift** is detected.
 
 Because of that mapping, the state file can be thought of as a **blueprint** of every resource Terraform manages out in the real world. Every time Terraform creates a resource, it records that resource's identity in state â€” regardless of what kind of resource it is:
 
