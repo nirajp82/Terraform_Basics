@@ -88,18 +88,20 @@ For developers coming from C#, ASP.NET, and SQL Server, mapping Terraform concep
 
 | Terraform | .NET / SQL Server equivalent |
 | --- | --- |
-| `.tf` file | EF Core entity class + migration, combined |
+| `.tf` file | EF Core entity/model class (desired schema) |
 | Provider | NuGet package / ADO.NET driver / cloud SDK |
 | `terraform init` | `dotnet restore` |
 | `terraform.tfstate` | EF Core's change tracker snapshot — but persisted to disk between runs |
-| `terraform plan` | `dotnet ef migrations add` + reviewing the generated script |
+| `terraform plan` | `dotnet ef migrations add` (schema migration) + reviewing the generated script |
 | `terraform apply` | `dotnet ef database update` |
 | Terraform Registry | nuget.org |
 | Terraform module | A shared class library / NuGet package you author |
 
 **Key mindset shift:** HCL is **declarative**, like a SQL `SELECT` — you describe the desired result, not the steps to get there, unlike a typical imperative C# `for` loop.
 
-**Where it breaks down:** losing `terraform.tfstate` has no clean .NET equivalent — EF Core's change tracker is rebuilt every app start, but Terraform's state is the *only* persisted record of what it manages between CLI runs. Terraform also has no automatic "down migration"; reverting means reapplying older `.tf` code.
+**A note on "migration":** EF Core's migration changes database **schema** (tables/columns) — it is *not* the same as **seeding** lookup/reference data via `HasData()`. Terraform's `plan`/`apply` are the schema-migration equivalent; Terraform has no built-in seeding concept — it manages infrastructure shape, not row-level data.
+
+**Where it breaks down:** losing `terraform.tfstate` has no clean .NET equivalent — EF Core's change tracker is rebuilt every app start, but Terraform's state is the *only* persisted record of what it manages between CLI runs. Terraform also has no automatic "down migration" or checked-in migration file; reverting means reapplying older `.tf` code.
 
 ---
 
