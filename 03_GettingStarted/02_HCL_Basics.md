@@ -251,6 +251,68 @@ Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
 
 > This is why `plan` is safe to run repeatedly: Terraform always compares desired state (your code) against real state before deciding what, if anything, needs to happen.
 
+### What Does "Refreshing state..." Actually Do?
+
+Notice the `local_file.pet: Refreshing state... [id=...]` line in both runs above. Before computing any diff, `plan` (and `apply`) performs an implicit **refresh** step: it re-reads the *real* resource — in this case, the actual bytes currently sitting in `/root/pets.txt` on disk — and updates its in-memory view of "current state" to match reality, before comparing that against your `.tf` code. This is what lets Terraform catch **drift**: changes made to the real resource *outside* of Terraform.
+
+**3rd run — someone edits `pets.txt` directly, filename unchanged**
+
+Say a teammate bypasses Terraform entirely and overwrites the file's content — the resource's **address** (`local_file.pet`) and **filename** argument haven't changed, only what's actually written to disk:
+
+```bash
+$ echo "I hate pets." > /root/pets.txt
+```
+
+Your `.tf` code still says `content = "We love pets."` — nobody touched it. Now run the workflow again:
+
+```bash
+$ terraform init
+Terraform has been successfully initialized!
+# No-op — providers unchanged
+
+$ terraform plan
+local_file.pet: Refreshing state... [id=...]
+
+Note: Objects have changed outside of Terraform
+
+Terraform detected the following changes made outside of Terraform since the
+last "terraform apply":
+
+  # local_file.pet has changed
+  ~ resource "local_file" "pet" {
+        id       = "..."
+      ~ content  = "I hate pets." -> "We love pets."
+    }
+
+Unless you have made equivalent changes to your configuration, or ignored the
+relevant attributes using ignore_changes, the following plan may include
+actions to undo or respond to these changes.
+
+  # local_file.pet will be updated in-place
+  ~ resource "local_file" "pet" {
+      ~ content = "I hate pets." -> "We love pets."
+        id      = "..."
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+
+$ terraform apply
+  # local_file.pet will be updated in-place
+  ~ resource "local_file" "pet" { ... }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+
+Do you want to perform these actions?
+  Enter a value: yes
+
+local_file.pet: Modifying... [id=...]
+local_file.pet: Modifications complete after 0s [id=...]
+
+Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+```
+
+**Why this is an update, not a create/destroy:** Terraform identifies a resource by its **address** (`local_file.pet`), not by its content. Because the filename argument didn't change, refresh still recognizes this as the *same* tracked resource — just one whose real-world content no longer matches what your code says it should be. Terraform always treats your **`.tf` code as the source of truth**: on `apply`, it silently overwrites `/root/pets.txt` back to `"We love pets."`, discarding the manual edit. If you actually *wanted* to keep `"I hate pets."`, you'd need to update `content` in the `.tf` file itself — otherwise Terraform will keep "correcting" the drift on every future apply.
+
 ---
 
 ## 3. Post-Deployment Verification

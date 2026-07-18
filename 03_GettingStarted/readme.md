@@ -76,6 +76,10 @@ Terraform is **idempotent** — re-running `init`/`plan`/`apply` against code th
 | `terraform plan` | Shows `1 to add` | Shows `No changes` |
 | `terraform apply` | Creates the resource, prompts for `yes` | Nothing to do — exits immediately |
 
+### Drift: When Someone Edits the Real Resource Outside Terraform
+
+Before diffing, `plan`/`apply` performs an implicit **refresh** — it re-reads the real resource (e.g., the actual bytes in `pets.txt` on disk) and updates its view of current state before comparing it to your `.tf` code. If someone edits the file's content directly (filename unchanged), refresh detects the mismatch and Terraform plans an **update in-place** to overwrite the real content back to what your code says — Terraform always treats the `.tf` code as the source of truth. It's still the same tracked resource (`local_file.pet`), so this is an update, not a create/destroy.
+
 ---
 
 ## 3. Terraform for .NET Developers
@@ -130,3 +134,6 @@ For developers coming from C#, ASP.NET, and SQL Server, mapping Terraform concep
 
 **Q: For a .NET developer, what's the closest equivalent to `terraform plan`, and what's the key difference between `terraform.tfstate` and EF Core's change tracker?**
 **A:** `terraform plan` is closest to `dotnet ef migrations add` plus reviewing the generated script — both compute a diff without executing it. Unlike EF Core's in-memory change tracker (rebuilt every app start), `terraform.tfstate` is persisted to disk and is Terraform's only record of what it manages between separate CLI runs.
+
+**Q: If someone manually edits `pets.txt`'s content outside Terraform but keeps the same filename, what happens on the next `terraform plan`?**
+**A:** During the implicit **refresh** step, Terraform re-reads the real file and notices its content no longer matches the `.tf` code. Since the resource address (`local_file.pet`) and filename are unchanged, it's still the same tracked resource — so Terraform plans an **update in-place** to overwrite the real content back to what the code says, not a create or destroy.
