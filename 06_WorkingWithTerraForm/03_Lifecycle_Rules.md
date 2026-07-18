@@ -63,6 +63,29 @@ flowchart LR
     style DESTROYLAST fill:#374151,stroke:#9ca3af,color:#ffffff
 ```
 
+### Filename Collisions: Why `create_before_destroy` Isn't Always Safe for `local_file`
+
+`create_before_destroy` can only work if the new and old resources are able to coexist. For `local_file`, the resource's real-world address is its `filename` (established in `01_Terraform_State.md`), and that path doesn't change just because `create_before_destroy` is set. Applying a change to `local_file.pet` above — same `filename`, updated `content` — still shows the old file being deleted **before** the new one is created, even with `create_before_destroy = true`: both the old and new resource would occupy the identical path `root/pet.txt`, so they can't exist at once, and the create-first ordering breaks down. The old file gets removed anyway during the recreation process.
+
+This is why `create_before_destroy` isn't always advisable for `local_file` — it depends on the old and new resource being distinguishable by something other than configuration alone, and a fixed `filename` argument can't provide that.
+
+Contrast this with a resource like `random_string`, which is recorded only in Terraform state and has no real-world path or identity to collide with:
+
+```hcl
+resource "random_string" "suffix" {
+  length  = 4
+  special = false
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+```
+
+`create_before_destroy` works as intended here — a new random string can exist alongside the old one with nothing to conflict over.
+
+Because `local_file.pet` no longer exists in the real world after that apply, running `terraform apply` again simply creates it fresh — a plain create, not a replace, since there's nothing left to conflict with.
+
 ---
 
 ## 4. `prevent_destroy`
@@ -144,7 +167,7 @@ Lifecycle rules are covered in more depth later in the course, once real AWS res
 
 ### Topic Summary: Lifecycle Rules
 
-The `lifecycle` block, placed inside a resource block, overrides Terraform's default destroy-then-create behavior for that resource. `create_before_destroy = true` creates the replacement before destroying the old resource, instead of after. `prevent_destroy = true` blocks `apply` from destroying the resource at all — useful for databases and other resources that shouldn't be deleted by accident — though `terraform destroy` still works regardless. `ignore_changes` takes a list of attribute names (or the `all` keyword) and stops Terraform from reverting drift on those specific attributes, letting external changes to them stand instead of being corrected on the next `apply`.
+The `lifecycle` block, placed inside a resource block, overrides Terraform's default destroy-then-create behavior for that resource. `create_before_destroy = true` creates the replacement before destroying the old resource, instead of after — but only when the old and new resource can actually coexist; for `local_file`, whose real-world address is a fixed `filename`, the old file still gets deleted first despite the setting, since two resources can't occupy the same path at once. `prevent_destroy = true` blocks `apply` from destroying the resource at all — useful for databases and other resources that shouldn't be deleted by accident — though `terraform destroy` still works regardless. `ignore_changes` takes a list of attribute names (or the `all` keyword) and stops Terraform from reverting drift on those specific attributes, letting external changes to them stand instead of being corrected on the next `apply`.
 
 ---
 
@@ -170,7 +193,15 @@ Answer each question on your own first, then read the explanation below it.
 
 ---
 
-### 3 · `prevent_destroy` scope
+### 3 · `create_before_destroy` and `local_file`
+
+**If `create_before_destroy = true` is set on `local_file.pet`, and only `content` changes (the `filename` stays the same), does Terraform actually create the new file before deleting the old one?**
+
+> No. Both the old and new resource would occupy the identical `filename` path, so they can't coexist — Terraform deletes the old file before the new one can be created, regardless of the setting. `create_before_destroy` only works cleanly when the old and new resource can exist side by side, which a fixed `filename` doesn't allow.
+
+---
+
+### 4 · `prevent_destroy` scope
 
 **Does `prevent_destroy = true` stop a resource from ever being destroyed?**
 
@@ -178,7 +209,7 @@ Answer each question on your own first, then read the explanation below it.
 
 ---
 
-### 4 · Why use `prevent_destroy`
+### 5 · Why use `prevent_destroy`
 
 **What kind of resource is `prevent_destroy` especially useful for?**
 
@@ -186,7 +217,7 @@ Answer each question on your own first, then read the explanation below it.
 
 ---
 
-### 5 · What `ignore_changes` actually does
+### 6 · What `ignore_changes` actually does
 
 **What does adding an attribute to `ignore_changes` change about Terraform's behavior?**
 
@@ -194,7 +225,7 @@ Answer each question on your own first, then read the explanation below it.
 
 ---
 
-### 6 · `ignore_changes` syntax
+### 7 · `ignore_changes` syntax
 
 **What does `ignore_changes` accept as a value?**
 
@@ -202,7 +233,7 @@ Answer each question on your own first, then read the explanation below it.
 
 ---
 
-### 7 · Default drift behavior without `ignore_changes`
+### 8 · Default drift behavior without `ignore_changes`
 
 **Without `ignore_changes`, what happens if a resource's tag is changed manually outside Terraform?**
 
@@ -210,7 +241,7 @@ Answer each question on your own first, then read the explanation below it.
 
 ---
 
-### 8 · Three rules, three different jobs
+### 9 · Three rules, three different jobs
 
 **In one sentence each, how do `create_before_destroy`, `prevent_destroy`, and `ignore_changes` differ?**
 

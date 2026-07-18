@@ -50,7 +50,7 @@ Goes directly inside a `resource` block to override Terraform's default destroy-
 
 ## 13. `create_before_destroy`
 
-On a forced replacement, creates the new resource before destroying the old one — reversing the default order.
+On a forced replacement, creates the new resource before destroying the old one — reversing the default order. Only works when the old and new resource can coexist: for `local_file`, whose real-world address is a fixed `filename`, the old file is still deleted first, since two resources can't occupy the same path at once. A resource like `random_string`, tracked only in state with no real-world path, doesn't have this limitation.
 
 ## 14. `prevent_destroy`
 
@@ -110,7 +110,7 @@ Takes a list of attribute names (or the `all` keyword) and stops Terraform from 
 **A:** Directly inside the `resource` block whose behavior it should change.
 
 **Q: What does `create_before_destroy = true` change?**
-**A:** It creates the replacement resource before destroying the old one, instead of after.
+**A:** It creates the replacement resource before destroying the old one, instead of after — but only when the old and new resource can coexist. `local_file`'s fixed `filename` means the old file is still deleted first, since both resources would share the same path.
 
 **Q: Does `prevent_destroy = true` stop a resource from ever being destroyed?**
 **A:** No — it only blocks destruction via configuration change + `apply`. `terraform destroy` still works regardless.
