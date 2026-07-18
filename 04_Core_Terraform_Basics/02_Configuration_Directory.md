@@ -135,59 +135,73 @@ flowchart TD
     style EXEC fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
 
-### How much memory does Terraform use at `plan` and `apply`?
+### How Much Memory Does Terraform Use at `plan` and `apply`?
 
-Parsing `.tf` files into a merged configuration uses **very little memory** — even many files are typically only a few MB in RAM. That is **not** what makes large migrations expensive.
+Two very different things get lumped together under "memory usage" — parsing your code, and tracking your infrastructure. Only one of them scales with real-world size.
 
-What actually drives memory, time, and disk during `terraform plan` and `terraform apply` is **how many resources Terraform is managing** — every user, group, app, or object tracked in **state** and compared during the plan.
+1. **Parsing `.tf` files → negligible.** Reading and merging `.tf` files into one configuration is fast and small — even hundreds of files rarely exceed a few MB in RAM. **File count is never the cost driver.**
+2. **Tracking resources in state → this is what actually scales.** Memory, time, and disk during `plan`/`apply` are driven by **how many `resource` blocks Terraform manages** — every one is tracked with its full set of attributes in `terraform.tfstate`.
+
+> **Rule of thumb:** 2 resources spread across 10 files cost the same as 2 resources crammed into 1 file. But 2 resources vs. 2 million resources — even inside the exact same file — is a completely different scale of memory, time, and API load.
+
+#### `resource` vs. `data` — only one of them grows persistent state
+
+A common point of confusion in a migration: does *every* record you read count toward Terraform's memory cost, or only the ones Terraform actually manages?
+
+| | `resource` block | `data` block |
+| --- | --- | --- |
+| **Example** | `cyberark_user` — the **target**; Terraform creates/updates it | `okta_user` — the **source**; Terraform only reads it |
+| **Persists in `terraform.tfstate` long-term?** | **Yes** — every one you add stays in state forever, growing the file | No — re-fetched fresh each run; not accumulated run over run |
+| **Drives long-term state size?** | **Yes** | **No** — only adds to that single run's peak memory while the read happens |
+
+Applied to an Okta → CyberArk migration:
+
+* **Okta** (3 million users) is read via `data "okta_user"` blocks. Terraform queries whatever it needs from the Okta API on that run — but these users are **not** what makes `terraform.tfstate` grow. Okta is only ever a source to read from, never something Terraform manages.
+* **CyberArk** (2 million `cyberark_user` resources, growing toward 3 million) are `resource` blocks Terraform **manages**. Every one of them lives permanently in `terraform.tfstate` — and that count is what actually drives memory, plan time, and disk usage.
 
 #### Small lab vs. large migration
 
-| Scenario | Resources managed | What Terraform holds in memory during plan/apply |
+| Scenario | `resource` blocks tracked in state | What Terraform holds in memory during `plan`/`apply` |
 | --- | --- | --- |
-| **Lab** (`main.tf` + `cat.tf`) | 2 `local_file` resources | Tiny — state and plan graph are negligible |
-| **Okta → CyberArk migration** | 3 million users in Okta (source), 2 million `cyberark_user` in CyberArk (target) | **Massive** — state must track millions of resource IDs, attributes, and dependencies |
+| **Lab** (`main.tf` + `cat.tf`) | 2 `local_file` resources | Negligible — state and plan graph are tiny |
+| **Okta → CyberArk migration** | ~2–3 million `cyberark_user` resources (Okta's 3M is read-only, never stored long-term) | **Massive** — state holds millions of resource IDs, attributes, and dependency edges |
 
-#### Okta → CyberArk example
+#### What happens during that `apply`
 
-Imagine an identity migration where:
-
-* **Okta** has **3 million users** (source data — read via API or data sources)
-* **CyberArk** already has **2 million users** Terraform manages (target — `cyberark_user` resources in state)
-* You run `terraform apply` to sync the remaining users
-
-On that `apply`, Terraform must:
-
-1. **Load state** — millions of `cyberark_user` entries with API IDs, emails, group mappings
-2. **Build a plan** — compare every desired user in `.tf` against every live user in CyberArk
-3. **Execute changes** — API calls to create/update users that are missing or drifted
+1. **Load state** — read millions of `cyberark_user` entries (IDs, emails, group mappings) from `terraform.tfstate` into memory.
+2. **Refresh** — call the CyberArk API to confirm each of those managed resources still matches reality.
+3. **Read data sources** — call the Okta API for whichever users this run needs; ephemeral, not stored long-term.
+4. **Build a plan** — diff desired `.tf` state against refreshed state for every managed resource.
+5. **Execute changes** — API calls to create or update whatever's missing or drifted.
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     CODE[".tf files — merged config in RAM — small"]
-    STATE["terraform.tfstate — 2M cyberark_user entries — HUGE"]
-    API["CyberArk API — 2M live users to compare — HUGE"]
+    STATE["terraform.tfstate — ~2-3M cyberark_user entries — GB-scale, PERSISTS"]
+    DATA["data okta_user reads — up to 3M available, only what's needed this run — EPHEMERAL"]
     CODE --> PLAN["terraform plan"]
     STATE --> PLAN
-    API --> PLAN
-    PLAN --> APPLY["terraform apply — millions of API calls"]
+    DATA --> PLAN
+    PLAN --> APPLY["terraform apply — millions of API calls against CyberArk"]
 
     style CODE fill:#14532d,stroke:#4ade80,color:#ffffff
     style STATE fill:#312e81,stroke:#a78bfa,color:#ffffff
-    style API fill:#312e81,stroke:#a78bfa,color:#ffffff
-    style PLAN fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style DATA fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style PLAN fill:#374151,stroke:#9ca3af,color:#ffffff
     style APPLY fill:#374151,stroke:#9ca3af,color:#ffffff
 ```
 
+#### What actually grows, and with what
+
 | What | Grows with… | Okta → CyberArk at millions of users |
 | --- | --- | --- |
-| **Merged `.tf` config in RAM** | Number/size of `.tf` files | Small — even generated files parse quickly |
-| **State file (`terraform.tfstate`)** | Every resource Terraform manages | **GB-scale** — one entry per `cyberark_user` |
-| **Plan/apply memory** | Resources in state + API refresh | **GB-scale RAM**, long runtimes, often needs remote state + parallel limits |
+| **Merged `.tf` config in RAM** | Number/size of `.tf` files | Small — parses in milliseconds regardless of file count |
+| **`terraform.tfstate` size** | Number of **managed** (`resource`) entries only | **GB-scale** — one entry per `cyberark_user`, **not** per Okta user |
+| **Plan/apply peak memory** | Managed resources in state + in-flight data-source/API reads | **GB-scale RAM**, long runtimes — often needs remote state + parallelism limits |
 | **Number of `.tf` files** | File count only | **Does not matter** if total resource count is the same |
 
-> **Key takeaway:** Two `.tf` files with 2 resources vs. one `.tf` file with 2 resources — same memory. But **2 million `cyberark_user` resources in state** vs. **2 `local_file` resources** — completely different scale. Enterprise migrations use techniques like **batching**, **remote state**, **`-target`**, and **splitting workspaces** precisely because of this.
+> **Key takeaway:** File count never matters. Only `resource` blocks accumulate permanently in state — a `data` block reads live and moves on without growing state. Two to three million managed resources, whether split across 1 file or 500, is what forces enterprise migrations toward **batching**, **remote state**, **`-target`**, and **split workspaces**.
 
 ---
 
@@ -433,7 +447,15 @@ Answer each question on your own first, then read the explanation below it.
 
 **How much memory does Terraform use during `plan` and `apply`?**
 
-> Parsing `.tf` files uses very little RAM. What drives memory at scale is **resource count in state** — e.g. millions of `cyberark_user` resources in an Okta → CyberArk migration can mean gigabytes of RAM and multi-hour plans. A two-resource lab is trivial by comparison.
+> Parsing `.tf` files uses very little RAM. What drives memory at scale is **how many `resource` blocks are tracked in state** — e.g. millions of `cyberark_user` resources in an Okta → CyberArk migration can mean gigabytes of RAM and multi-hour plans. A two-resource lab is trivial by comparison.
+
+---
+
+### 3a · `resource` vs. `data` memory cost
+
+**In an Okta → CyberArk migration, do the 3 million Okta users add to Terraform's long-term memory and state size the same way the 2 million `cyberark_user` resources do?**
+
+> **No.** Okta users are read through **`data "okta_user"` blocks** — Terraform queries whatever it needs from the Okta API on that run, but this is **not** persisted in `terraform.tfstate` run over run. Only **`resource` blocks** (`cyberark_user`) accumulate permanently in state — that count, not the data-source read volume, is what drives long-term state size and `plan`/`apply` memory.
 
 ---
 
