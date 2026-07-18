@@ -135,6 +135,44 @@ Executes the planned changes on the target platform.
 
 * **Mechanism:** It presents the execution plan one final time and pauses for user confirmation (`yes`). Once confirmed, Terraform executes the API actions to create, update, or delete the resources.
 
+### FAQ: When Do You Run `plan` vs. `apply`?
+
+A common point of confusion for beginners is whether these two commands are interchangeable. They are not — `plan` is a **preview**, and `apply` is the **execution**.
+
+* Run `terraform plan` **as often as you like**. It only reads your code and the current state/real infrastructure to compute a diff — it never changes anything. Use it after every edit, in pull request reviews, or in a CI pipeline to catch drift before anyone applies.
+* Run `terraform apply` **only when you're ready to make the change for real**. Under the hood, `apply` re-runs the same plan logic, shows you the identical diff, and pauses for a `yes` confirmation before it touches any real infrastructure — unless you skip the prompt with `-auto-approve` or feed it a previously saved plan file.
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+sequenceDiagram
+    participant U as User
+    participant T as Terraform CLI
+    participant S as State File
+    participant P as Provider API
+
+    rect rgb(20, 45, 75)
+    Note over U,P: terraform plan (dry run)
+    U->>T: terraform plan
+    T->>S: Read current state
+    T->>P: Query real infrastructure
+    P-->>T: Current resource attributes
+    T-->>U: Show diff (+ create / ~ update / - destroy)
+    Note right of T: Read-only — nothing changes
+    end
+
+    rect rgb(20, 55, 40)
+    Note over U,P: terraform apply (execute)
+    U->>T: terraform apply
+    T-->>U: Re-display the plan, prompt for "yes"
+    U->>T: yes
+    T->>P: Create / Update / Delete resources
+    P-->>T: Confirm changes
+    T->>S: Write new resource state
+    end
+```
+
+> **Golden rule:** If you only want to know *what would happen*, use `plan`. If you want it to *actually happen*, use `apply`. Always read the `plan` diff carefully before typing `yes` at an `apply` prompt.
+
 ---
 
 ## 3. Post-Deployment Verification
@@ -173,3 +211,6 @@ Terraform relies on HashiCorp Configuration Language (HCL) written in `.tf` file
 
 **Q: How can you find out which configuration arguments are optional or mandatory for a specific resource type?**
 **A:** By consulting the official provider documentation at `registry.terraform.io`. It explicitly categorizes all acceptable arguments for every resource type as either required or optional.
+
+**Q: When should you run `terraform plan` versus `terraform apply`?**
+**A:** Run `terraform plan` any time you want a safe, read-only preview of what Terraform intends to change — after every edit, in code review, or in CI to catch drift. Run `terraform apply` only when you're ready to make the change for real; it re-runs the plan internally, shows the same diff, and pauses for a `yes` confirmation before touching any infrastructure (unless you pass `-auto-approve` or a saved plan file).
