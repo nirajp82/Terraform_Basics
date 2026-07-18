@@ -84,6 +84,17 @@ resource "aws_db_instance" "app_db" {
 }
 ```
 
+**Worth clarifying before going further: `ami` and `identifier` are not the same kind of thing.**
+
+| Value | What it actually is | Is it the resource's unique ID? |
+| --- | --- | --- |
+| `ami` (on `aws_instance`) | Which Amazon Machine Image to **launch from** — an argument you choose | **No.** Many EC2 instances can share the same AMI. It's just an input, exactly like `local_file.pet`'s `content` argument. |
+| `instance_type` (on `aws_instance`) | Which EC2 size to launch — an argument you choose | **No.** Same reasoning — many instances share the same type. |
+| `aws_instance.web`'s **`id`** (computed, e.g. `i-0abcd1234efgh5678`) | The actual instance ID AWS assigns **at launch** | **Yes.** This is the real unique ID — unknown until `apply` runs (`known after apply`), then recorded in `terraform.tfstate`. It's `local_file.pet.id`'s counterpart. |
+| `identifier` (on `aws_db_instance`) | The DB instance name **you choose** — must be unique within your AWS account/region | **Yes — but as an input, not a computed output.** RDS is a special case: unlike `ami`/`instance_type`, `identifier` is both an argument *and* the value AWS (and Terraform's `id` attribute) uses as the resource's real-world identity. |
+
+So `ami` behaves like `content` on `local_file` — an input that shapes the resource, but not what identifies it. `identifier` on `aws_db_instance` is different: it's an input you're required to make unique, and it *becomes* the identity Terraform tracks — for this resource type specifically, the computed `id` attribute ends up equal to whatever `identifier` you set.
+
 The exact same three sources, and the exact same refresh-then-compare pipeline, apply — only the artifacts change:
 
 | Role | This lesson's demo | EC2 + RDS equivalent |
