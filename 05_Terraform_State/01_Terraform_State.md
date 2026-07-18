@@ -28,11 +28,11 @@ Before walking through the demo, it helps to understand the problem state actual
 
 Terraform's job, every time you run `plan` or `apply`, is to answer one question: **"What do I need to change to make reality match my configuration?"** To answer that, Terraform needs three pieces of information — and only has two of them for free:
 
-| Source | Answers | Where it lives |
-| --- | --- | --- |
-| **Configuration** | What do you *want*? (desired state) | `main.tf`, `variables.tf`, … — written by you |
-| **Real-world infrastructure** | What actually exists *right now*? | The cloud provider, disk, API, etc. |
-| **State** | What did Terraform *itself* create, with which ID and attributes? | `terraform.tfstate` — written by Terraform |
+| Source | Answers | File / extension | Written by |
+| --- | --- | --- | --- |
+| **Configuration** | What do you *want*? (desired state) | `main.tf`, `variables.tf` — **`.tf`** files | You |
+| **Real-world infrastructure** | What actually exists *right now*? | e.g. the real file at `root/pet.txt` — no Terraform file at all, it's just the object itself | The provider (disk, cloud API, etc.) |
+| **State** | What did Terraform *itself* create, with which ID and attributes? | `terraform.tfstate` — the **`.tfstate`** file | Terraform |
 
 Configuration alone can't tell Terraform whether a resource already exists — every `plan` would look like a fresh `create`. And the real world alone isn't reliable either: most resource types have no built-in, guaranteed-unique way to match "the thing sitting in the cloud" back to "the resource block in my `.tf` file." A `local_file` resource, for instance, doesn't expose anything that says "I was created by Terraform's `local_file.pet` block."
 
@@ -40,16 +40,16 @@ So Terraform keeps its **own persistent record** — the state file — as the m
 
 Here's the part that's easy to miss: **configuration is never compared to the real world directly.** Every `plan` and `apply` follows the same two-step sequence, in this exact order:
 
-1. **Refresh** — Terraform asks each provider to **Read** the real-world object for every resource already in state, and updates its **in-memory copy of state** to match what it just read. Real-world data only ever enters the picture *through* this step, flowing *into* state.
-2. **Compare** — Terraform compares your **configuration** against that freshly-refreshed **state** — not against the real world itself — to decide what to create, update, replace, or leave alone.
+1. **Refresh** — Terraform asks the provider to **Read** the real-world object (the actual `root/pet.txt` file) for every resource already recorded in `terraform.tfstate`, and updates its **in-memory copy of that `.tfstate` data** to match what it just read. Real-world data only ever enters the picture *through* this step, flowing *into* the `.tfstate` copy.
+2. **Compare** — Terraform compares your **`.tf` configuration** against that freshly-refreshed **`.tfstate` data** — not against `root/pet.txt` itself — to decide what to create, update, replace, or leave alone.
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
-    REAL["Real-world infrastructure<br>What actually exists"]
-    REAL -->|"Step 1: refresh<br>provider reads real object"| STATE["In-memory state<br>now matches reality"]
-    CONFIG["Configuration<br>What you want"]
-    STATE -->|"Step 2: compare"| DECISION["Decision:<br>create / update / replace / no-op"]
+    REAL["root/pet.txt<br>(the real file — no Terraform extension,<br>just the actual object)"]
+    REAL -->|"Step 1: refresh<br>provider Reads the real file"| STATE["terraform.tfstate<br>(.tfstate — in-memory copy,<br>now matches root/pet.txt)"]
+    CONFIG["main.tf<br>(.tf — what you want)"]
+    STATE -->|"Step 2: compare"| DECISION["plan / apply decision:<br>create / update / replace / no-op"]
     CONFIG -->|"Step 2: compare"| DECISION
 
     style REAL fill:#374151,stroke:#9ca3af,color:#ffffff
@@ -58,7 +58,7 @@ flowchart TD
     style DECISION fill:#312e81,stroke:#a78bfa,color:#ffffff
 ```
 
-> **Rule to remember:** Terraform never compares your configuration straight against the real world. Real-world data only reaches Terraform by being **refreshed into state** first (step 1); your configuration is then compared only against that **refreshed state** (step 2). That's what "state sits between configuration and the real world" means — it's a strict two-step pipeline, not a three-way free-for-all.
+> **Rule to remember:** Terraform never compares `main.tf` straight against `root/pet.txt`. Real-world data only reaches Terraform by being **refreshed into `terraform.tfstate`** first (step 1); your **`.tf`** configuration is then compared only against that refreshed **`.tfstate`** data (step 2). That's what "state sits between configuration and the real world" means — it's a strict two-step pipeline, not a three-way free-for-all.
 
 ---
 
