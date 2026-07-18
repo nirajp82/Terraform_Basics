@@ -232,7 +232,7 @@ If `local_file.pet` already exists with a static path, plan may show **destroy a
     }
 ```
 
-> The `~` symbol means **update in-place** where possible; `-/+` means **destroy and recreate** when a force-new attribute like `filename` changes.
+> The `~` symbol means **update in-place** where possible; `-/+` means **destroy and recreate** when a force-new attribute changes. For `local_file`, that's every argument — `filename` **and** `content` are both force-new, since the provider has no in-place update path (see `07_Resource_Attributes_and_References.md`).
 
 ### `terraform apply`
 

@@ -236,9 +236,9 @@ variable "counts_number" {
 
 ---
 
-## 6. Sets — Lists Without Duplicates
+## 6. Sets — Collections Without Duplicates
 
-A **`set`** is like a list but **duplicate elements are not allowed**.
+A **`set`** is like a list but holds only **unique** elements — by definition, it cannot contain duplicates.
 
 ```hcl
 # Valid set(string)
@@ -254,22 +254,23 @@ variable "port_set" {
 }
 ```
 
+**What happens if you write a duplicate anyway?**
+
 ```hcl
-# INVALID — duplicate "dev"
-variable "invalid_set" {
+variable "deduped_set" {
   type    = set(string)
-  default = ["dev", "staging", "dev"]
+  default = ["dev", "staging", "dev"]   # "dev" appears twice
 }
 ```
 
-Terraform rejects duplicate values in a set default.
+> **This does not error.** Terraform silently **deduplicates** the list while converting it to a `set` — the resulting value has exactly **two** elements (`"dev"`, `"staging"`), not three. This can surprise beginners expecting a validation error on the duplicate; if you need Terraform to actively *reject* a duplicate rather than quietly collapse it, that requires a `variable` **validation block** (a later topic) — the `set` type alone won't do it.
 
 | | **List** | **Set** |
 | --- | --- | --- |
-| Order | **Ordered** — index `[0]`, `[1]` | Unordered collection |
-| Duplicates | **Allowed** | **Not allowed** |
+| Order | **Ordered** — index `[0]`, `[1]` | Unordered — no index access |
+| Duplicates | **Preserved** | **Silently collapsed to one** — never an error |
 | Syntax | `[ "a", "b" ]` | Same bracket syntax |
-| Use when | Order matters | Unique values only |
+| Use when | Order matters | Only uniqueness matters |
 
 ---
 
@@ -507,7 +508,7 @@ In your configuration directory:
 2. Create a `list(string)` variable `prefix` — use `var.prefix[0]` in a resource.
 3. Create a `map(string)` variable `file_content` — use `var.file_content["statement2"]` for `local_file` content.
 4. Intentionally mismatch types (e.g., `list(number)` with string defaults) — run `terraform validate` and read the error.
-5. Create a `set(string)` with a duplicate value — confirm Terraform rejects it.
+5. Create a `set(string)` with a duplicate value — run `terraform console` and inspect it to confirm Terraform silently deduplicates it (no error, just fewer elements) rather than rejecting it.
 6. Create an `object` variable `bella` — reference `var.bella.name` and `var.bella.food[0]`.
 7. Create a `tuple([string, number, bool])` — try adding a fourth element and confirm the error.
 
@@ -571,7 +572,7 @@ Answer each question on your own first, then read the explanation below it.
 
 **What is the difference between a list and a set?**
 
-> Both hold collections, but a **set forbids duplicate values** and is unordered. A **list** is **ordered** and indexed with `[0]`, `[1]`, … — use a set when **uniqueness** matters.
+> Both hold collections, but a **set only ever holds unique values** — duplicates are **silently collapsed**, not rejected with an error — and is unordered. A **list** is **ordered**, indexed with `[0]`, `[1]`, …, and preserves duplicates. Use a set when **uniqueness** matters more than order.
 
 ---
 

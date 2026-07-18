@@ -288,30 +288,35 @@ Unless you have made equivalent changes to your configuration, or ignored the
 relevant attributes using ignore_changes, the following plan may include
 actions to undo or respond to these changes.
 
-  # local_file.pet will be updated in-place
-  ~ resource "local_file" "pet" {
-      ~ content = "I hate pets." -> "We love pets."
-        id      = "..."
+  # local_file.pet must be replaced
+-/+ resource "local_file" "pet" {
+      ~ content  = "I hate pets." -> "We love pets." # forces replacement
+      ~ id       = "..." -> (known after apply)
+        filename = "/root/pets.txt"
     }
 
-Plan: 0 to add, 1 to change, 0 to destroy.
+Plan: 1 to add, 0 to change, 1 to destroy.
 
 $ terraform apply
-  # local_file.pet will be updated in-place
-  ~ resource "local_file" "pet" { ... }
+  # local_file.pet must be replaced
+-/+ resource "local_file" "pet" { ... }
 
-Plan: 0 to add, 1 to change, 0 to destroy.
+Plan: 1 to add, 0 to change, 1 to destroy.
 
 Do you want to perform these actions?
   Enter a value: yes
 
-local_file.pet: Modifying... [id=...]
-local_file.pet: Modifications complete after 0s [id=...]
+local_file.pet: Destroying... [id=...]
+local_file.pet: Destruction complete after 0s
+local_file.pet: Creating...
+local_file.pet: Creation complete after 0s [id=...]
 
-Apply complete! Resources: 0 added, 1 changed, 0 destroyed.
+Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
 ```
 
-**Why this is an update, not a create/destroy:** Terraform identifies a resource by its **address** (`local_file.pet`), not by its content. Because the filename argument didn't change, refresh still recognizes this as the *same* tracked resource — just one whose real-world content no longer matches what your code says it should be. Terraform always treats your **`.tf` code as the source of truth**: on `apply`, it silently overwrites `/root/pets.txt` back to `"We love pets."`, discarding the manual edit. If you actually *wanted* to keep `"I hate pets."`, you'd need to update `content` in the `.tf` file itself — otherwise Terraform will keep "correcting" the drift on every future apply.
+**Why this is a replace, not a plain update:** Terraform still identifies this as the same tracked resource — the `local_file.pet` **address** and the `filename` argument didn't change. But `local_file` has no in-place update path at all: the provider only implements create and delete, so **every** argument — including `content` — is force-new. Any change to it, whether from your own edit or from someone else's drift, destroys the old file and creates a brand-new one (with a brand-new `id`, since the ID is derived from the file). Terraform always treats your **`.tf` code as the source of truth**: on `apply`, it deletes `/root/pets.txt` and rewrites it with `"We love pets."`, discarding the manual edit. If you actually *wanted* to keep `"I hate pets."`, you'd need to update `content` in the `.tf` file itself — otherwise Terraform will keep "correcting" the drift (via replace) on every future apply.
+>
+> Not every Terraform resource behaves this way — many cloud resources support genuine in-place updates for most arguments. `local_file` is a simple, deliberately minimal resource that only supports create/delete.
 
 ---
 

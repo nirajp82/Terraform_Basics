@@ -434,19 +434,21 @@ terraform apply
 
 | Change in `variables.tf` | Effect after apply |
 | --- | --- |
-| `content` updated | `local_file.pet` — **updated in-place** (file text changes) |
+| `content` updated | `local_file.pet` — **replaced** (destroy + recreate — `content` is a force-new argument for `local_file`) |
 | `length` changed from `1` to `2` | `random_pet.my_pet` — **replaced** (new random name with two words after prefix) |
 
 ```text
 random_pet.my_pet: Destroying... [id=dog-coral]
 random_pet.my_pet: Creation complete [id=dog-delicate-wallaby]
-local_file.pet: Modifying...
-local_file.pet: Modifications complete
+local_file.pet: Destroying...
+local_file.pet: Destruction complete
+local_file.pet: Creating...
+local_file.pet: Creation complete
 
-Apply complete! Resources: 1 added, 1 changed, 1 destroyed.
+Apply complete! Resources: 2 added, 0 changed, 2 destroyed.
 ```
 
-> When a **force-new** argument like `random_pet.length` changes, Terraform **destroys and recreates** that resource. Updating `local_file.content` typically **updates** the existing file without recreating the resource address.
+> **`local_file` has no in-place update path** — the provider only implements create and delete for it, so **every** argument (`content`, `filename`, permissions, …) is force-new. Changing `content` always destroys the old file and creates a new one, just like changing `random_pet.length` recreates the pet name. Not every resource type behaves this way — many cloud resources support true in-place updates for most arguments — but `local_file` specifically does not. See `07_Resource_Attributes_and_References.md` for the full explanation.
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
@@ -559,15 +561,18 @@ my-terraform-project/
 
 ### Value precedence (highest wins)
 
-When the same variable is set in multiple places:
+When the same variable is set in multiple places, Terraform resolves one winner using a fixed ladder (lowest → highest):
 
 ```text
-1. -var flag on CLI              (highest priority)
-2. -var-file=custom.tfvars
-3. terraform.tfvars / *.auto.tfvars
-4. TF_VAR_<name> environment variable
-5. default in variables.tf       (lowest priority)
+1. default in variables.tf                                    (lowest priority)
+2. TF_VAR_<name> environment variable
+3. terraform.tfvars
+4. *.auto.tfvars (alphabetical order; later files win ties)
+5. -var / -var-file on the CLI — whichever appears LAST on
+   the command line wins (highest priority)
 ```
+
+> **`-var` does not automatically beat `-var-file`.** Both sit at the same, highest step — if a command passes both, whichever one appears **last** on the command line wins. See `06_Assigning_Variable_Values.md` §6 for the full worked example and cheat sheet.
 
 **Example:**
 
@@ -590,17 +595,17 @@ terraform apply -var="content=override from CLI"
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart TD
     DEF["default in variables.tf"]
+    ENV["TF_VAR_&lt;name&gt; environment variable"]
     TFVARS["terraform.tfvars"]
     AUTO["*.auto.tfvars"]
-    FILE["-var-file=prod.tfvars"]
-    CLI["-var on CLI"]
-    DEF --> TFVARS --> AUTO --> FILE --> CLI
+    CLI["-var / -var-file on CLI — last flag wins"]
+    DEF --> ENV --> TFVARS --> AUTO --> CLI
     CLI --> WIN["Winning value used at plan/apply"]
 
     style DEF fill:#374151,stroke:#9ca3af,color:#ffffff
+    style ENV fill:#374151,stroke:#9ca3af,color:#ffffff
     style TFVARS fill:#374151,stroke:#9ca3af,color:#ffffff
     style AUTO fill:#374151,stroke:#9ca3af,color:#ffffff
-    style FILE fill:#312e81,stroke:#a78bfa,color:#ffffff
     style CLI fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
     style WIN fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
@@ -777,7 +782,7 @@ Answer each question on your own first, then read the explanation below it.
 
 **If the same variable has a `default`, a value in `terraform.tfvars`, and a `-var` flag, which wins?**
 
-> **`-var` on the CLI** (highest), then **`-var-file`**, then **`terraform.tfvars` / `*.auto.tfvars`**, then **`TF_VAR_`**, then **`default`** in `variables.tf`.
+> **`-var` on the CLI** — it sits at the highest step, tied with `-var-file` (whichever appears last on the command line wins if both are used). Below that: **`*.auto.tfvars`**, then **`terraform.tfvars`**, then **`TF_VAR_`**, then **`default`** in `variables.tf`.
 
 ---
 

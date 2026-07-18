@@ -205,7 +205,7 @@ You do **not** write a separate `depends_on` for this simple case — the refere
 
 ---
 
-## 7. Plan and Apply — Content Replaced
+## 7. Plan and Apply — Content Forces Replacement
 
 After changing `content` from a hardcoded string to **`${random_pet.my_pet.id}`**, run:
 
@@ -213,19 +213,30 @@ After changing `content` from a hardcoded string to **`${random_pet.my_pet.id}`*
 terraform plan
 ```
 
-Terraform detects that **`local_file.pet`** must be **updated in place** (content changed):
+Terraform detects that **`local_file.pet`** must be **replaced**, not updated in place — `local_file`'s `content` argument is a **force-new** attribute (the provider only implements create and delete for this resource, no update), so any change to it destroys the old file and creates a new one, with a brand-new **`id`**:
 
 ```diff
-  # local_file.pet will be updated in-place
-  ~ resource "local_file" "pet" {
-      ~ content  = "My favorite pet is Mr. Cat" -> "My favorite pet is mr-faithful-bull"
+  # local_file.pet must be replaced
+-/+ resource "local_file" "pet" {
+      ~ content  = "My favorite pet is Mr. Cat" -> "My favorite pet is mr-faithful-bull" # forces replacement
+      ~ id       = "..." -> (known after apply)
         filename = "root/pet.txt"
-        id       = "..."
     }
+
+Plan: 1 to add, 0 to change, 1 to destroy.
 ```
 
 ```bash
 terraform apply
+```
+
+```text
+local_file.pet: Destroying... [id=...]
+local_file.pet: Destruction complete after 0s
+local_file.pet: Creating...
+local_file.pet: Creation complete after 0s [id=...]
+
+Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
 ```
 
 After apply, open **`root/pet.txt`** — the content matches the **`random_pet`** name, not the old hardcoded text.
@@ -233,9 +244,12 @@ After apply, open **`root/pet.txt`** — the content matches the **`random_pet`*
 | What changed | What stayed the same |
 | --- | --- |
 | **`content`** — now driven by **`random_pet.my_pet.id`** | **`random_pet`** arguments (`prefix`, `length`, …) |
-| **Dependency** — file waits for pet name | Resource types and names |
+| **`local_file.pet`'s `id`** — new value after the replace | Resource types and names |
+| **Dependency** — file waits for pet name | — |
 
-If you change **`random_pet`** in a way that forces replacement (e.g. **`length`**), the **`.id` value changes** — and any resource referencing it (like **`local_file`**) updates accordingly on the next apply.
+> **Not every resource behaves like `local_file`.** Many cloud resources support true in-place updates for most arguments (e.g., updating an EC2 instance's tags doesn't recreate it). `local_file` specifically has no update path at all — every argument on it is force-new. Always check a resource's docs (or run `terraform plan`) rather than assuming.
+
+If you change **`random_pet`** in a way that forces replacement (e.g. **`length`**), the **`.id`** value changes — and **`local_file`**, which references it, is replaced again on the next apply as a result.
 
 ---
 
@@ -346,7 +360,9 @@ Answer each question on your own first, then read the explanation below it.
 
 **After changing `content` from a hardcoded string to `${random_pet.my_pet.id}`, what does `terraform plan` show?**
 
-> An **in-place update** (`~`) on **`local_file.pet`**. The **`content`** line changes from the old literal string to the interpolated pet name — for example:
+> A **replace** (`-/+`), not an in-place update — `content` is a force-new argument for `local_file`. For example:
 >
-> `~ content = "My favorite pet is Mr. Cat" -> "My favorite pet is mr-faithful-bull"`
+> `~ content = "My favorite pet is Mr. Cat" -> "My favorite pet is mr-faithful-bull" # forces replacement`
+>
+> with `Plan: 1 to add, 0 to change, 1 to destroy.`
 

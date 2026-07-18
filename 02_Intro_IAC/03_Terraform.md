@@ -79,13 +79,14 @@ Terraform executes its declarative logic through a standard three-phase lifecycl
 
 * **Import:** Terraform can adopt existing resources that were created manually or by other tools, bringing them under Terraform's state management going forward.
   * **For ex. in IDP migration:**: If you have 500 applications that were built manually in Okta over the last five years, you use `import` to pull them into your Terraform code without having to delete and recreate them.
+
 ---
 
-# Example of Terraform Migration Guide: Okta → CyberArk
+## Example: Terraform Migration Guide — Okta → CyberArk
 
 This guide explains the core workflow of migrating users, groups, and applications from an existing Identity Provider (Okta) to a new Identity Provider (CyberArk) using Terraform.
 
-## 0. The Golden Rule of Migrations
+### 0. The Golden Rule of Migrations
 
 > **Terraform does not "manage Okta data" in this migration.**
 
@@ -94,7 +95,7 @@ This guide explains the core workflow of migrating users, groups, and applicatio
 
 Therefore, Terraform resources are named based on the *target* system provider. We use `cyberark_user` and `cyberark_group`. We **do not** use `okta_user` to create things, because Terraform is actively controlling CyberArk, not Okta.
 
-## 1. Before Terraform Starts (Getting the Okta Data)
+### 1. Before Terraform Starts (Getting the Okta Data)
 
 Okta already contains your live data (Users: John, Sarah, Mike, Lisa | Group: Finance). To get this data out of Okta and ready for CyberArk, you generally use one of two methods:
 
@@ -118,7 +119,7 @@ resource "cyberark_user" "target_john" {
 
 ```
 
-## 2. Terraform Configuration (Desired State)
+### 2. Terraform Configuration (Desired State)
 
 This code tells Terraform what to build in CyberArk.
 
@@ -135,7 +136,7 @@ resource "cyberark_group" "finance" { name = "Finance" }
 
 ```
 
-### What is a Resource?
+#### What is a Resource?
 
 A resource is an object Terraform creates and manages in the target system.
 
@@ -145,25 +146,25 @@ A resource is an object Terraform creates and manages in the target system.
 | `cyberark_user.sarah` | User Sarah |
 | `cyberark_group.finance` | Finance Group |
 
-## 3. Init (`terraform init`)
+### 3. Init (`terraform init`)
 
 When you run `terraform init`, Terraform reads your `.tf` files, downloads the required Provider plugins (like the CyberArk provider), and prepares API communication. At this stage, no users are read, and no changes are made.
 
 **What is a Provider?**
 A provider is the plugin that connects Terraform to a specific system's API. The CyberArk Provider knows how to securely `GET` and `POST` users and groups to the CyberArk API.
 
-## 4. Plan (`terraform plan`)
+### 4. Plan (`terraform plan`)
 
-Terraform compares what you *want* against what *actually exists*.
+Terraform compares what you *want* against what *actually exists* — but only for what it already knows about.
 
 * **Step 1: Reads the Desired State from your `.tf` code.** Terraform reads the `cyberark_` blocks you wrote to understand what you want CyberArk to look like. *(Note: It is NOT connecting to Okta here; it is only reading your local code).*
-* **Step 2: Reads the Actual State from CyberArk.** Terraform calls the CyberArk API (`GET /users`, `GET /groups`) to see what already exists in the target system.
-* **Step 3: Compares the two.**
+* **Step 2: Refreshes state for resources it already manages.** For every `cyberark_user`/`cyberark_group` already recorded in `terraform.tfstate` from a prior apply (like John and Sarah), Terraform calls the CyberArk API for **that specific object** to confirm it still matches. Terraform does **not** scan the entire CyberArk account looking for accounts that happen to share a name — it only checks resources it already tracks.
+* **Step 3: Compares.** Anything in your code that isn't yet in state (Mike, Lisa, Finance) is simply planned as a **create** — Terraform assumes it doesn't exist yet unless you tell it otherwise via `import`.
 
-| Resource | In Your Code? | Already in CyberArk? | Action |
+| Resource | In Your Code? | Already tracked in state? | Action |
 | --- | --- | --- | --- |
-| John | Yes | Yes | No change |
-| Sarah | Yes | Yes | No change |
+| John | Yes | Yes (created in a prior apply) | No change |
+| Sarah | Yes | Yes (created in a prior apply) | No change |
 | Mike | Yes | No | **Create** |
 | Lisa | Yes | No | **Create** |
 | Finance | Yes | No | **Create** |
@@ -179,11 +180,13 @@ Terraform compares what you *want* against what *actually exists*.
 
 *(Note: Nothing is actually created yet.)*
 
-## 5. Apply (`terraform apply`)
+> **Common misconception:** `terraform plan` does not probe the target platform to check whether an object with a matching name *already exists somewhere in the account*. If Mike already existed in CyberArk (created manually, outside Terraform) but isn't yet in state, Terraform would still plan a **create** — and `apply` would likely fail with a duplicate-user error from the CyberArk API. The fix for that case is `terraform import` (see step 8 below), not `plan`.
+
+### 5. Apply (`terraform apply`)
 
 Terraform instructs the CyberArk provider to execute the changes. The provider calls the CyberArk API (`POST /users`, `POST /groups`). CyberArk now perfectly matches your Terraform configuration.
 
-## 6. State (Very Important)
+### 6. State (Very Important)
 
 Terraform stores a state file locally (or remotely) called `terraform.tfstate`. It maps your written code to the real CyberArk database IDs.
 
@@ -192,7 +195,7 @@ Terraform stores a state file locally (or remotely) called `terraform.tfstate`. 
 
 Terraform uses this state to remember what already exists, avoid creating duplicates, and track changes later.
 
-## 7. Data Source (Read Only)
+### 7. Data Source (Read Only)
 
 **Why use this?** Sometimes CyberArk has built-in objects or required settings that *never existed in Okta*, but you still need to use them for your migration.
 
@@ -211,7 +214,7 @@ data "cyberark_policy" "default_auth" {
 | **Data Source** | Terraform only looks it up (read-only) to use its data elsewhere. |
 
 
-## 8. Import (Crucial for Migrations)
+### 8. Import (Crucial for Migrations)
 
 If John and the Finance group already exist in CyberArk because someone created them manually years ago, Terraform does NOT know about them yet. You must import them:
 
@@ -224,14 +227,14 @@ terraform import cyberark_group.finance 501
 Terraform's state updates to reflect that it now owns these objects. It manages them going forward without needing to delete and recreate them.
 
 
-## 9. Drift (The Manual Changes Problem)
+### 9. Drift (The Manual Changes Problem)
 
 If a rogue admin manually deletes Mike directly in the CyberArk dashboard, Terraform still expects Mike to exist in its state.
 
 On the next `terraform plan`, Terraform detects the missing user. Running `terraform apply` will automatically recreate Mike, instantly fixing the unauthorized manual change (drift).
 
 
-## Final Mental Model Summary
+### Final Mental Model Summary
 
 1. **Okta:** Source data only (read via script or Okta Data Sources).
 2. **Configuration:** `.tf` files defining the desired state for CyberArk (can be one file or many).
@@ -244,6 +247,7 @@ On the next `terraform plan`, Terraform detects the missing user. Running `terra
 9. **Drift:** Automatically fixes manual, out-of-band changes.
 
 ---
+
 ## Enterprise Offerings
 
 While Terraform open-source is highly capable, HashiCorp offers **Terraform Cloud** and **Terraform Enterprise**. These provide advanced features for organizations, such as centralized state management, simplified team collaboration, enhanced security controls, and a centralized UI for managing deployments.
