@@ -35,3 +35,7 @@ Each module folder below has its own `readme.md` chapter summary, and each numbe
 1. [Terraform State](05_Terraform_State/01_Terraform_State.md)
 2. [Purpose of Terraform State](05_Terraform_State/02_Purpose_of_Terraform_State.md)
 3. [Terraform State Considerations](05_Terraform_State/03_Terraform_State_Considerations.md)
+
+### [06 — Working with Terraform](06_WorkingWithTerraForm/readme.md)
+
+1. [Terraform Commands](06_WorkingWithTerraForm/01_Terraform_Commands.md)
