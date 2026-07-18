@@ -173,6 +173,76 @@ sequenceDiagram
 
 > **Golden rule:** If you only want to know *what would happen*, use `plan`. If you want it to *actually happen*, use `apply`. Always read the `plan` diff carefully before typing `yes` at an `apply` prompt.
 
+### Example: Running All 3 Commands Twice
+
+The real value of `plan` becomes obvious once you run the workflow a **second time** without changing any code. Terraform is **idempotent** — re-running the same configuration against infrastructure that already matches it should change nothing. Using the `local_file.pet` example from earlier:
+
+**1st run — resource doesn't exist yet**
+
+```bash
+$ terraform init
+Initializing the backend...
+Initializing provider plugins...
+- Finding latest version of hashicorp/local...
+- Installing hashicorp/local v2.5.1...
+
+Terraform has been successfully initialized!
+
+$ terraform plan
+Terraform will perform the following actions:
+
+  # local_file.pet will be created
+  + resource "local_file" "pet" {
+      + content  = "We love pets."
+      + filename = "/root/pets.txt"
+      + id       = (known after apply)
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+$ terraform apply
+  # local_file.pet will be created
+  + resource "local_file" "pet" { ... }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+Do you want to perform these actions?
+  Enter a value: yes
+
+local_file.pet: Creating...
+local_file.pet: Creation complete after 0s [id=...]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+```
+
+**2nd run — same code, nothing changed**
+
+```bash
+$ terraform init
+Terraform has been successfully initialized!
+# Provider already downloaded — effectively a no-op
+
+$ terraform plan
+local_file.pet: Refreshing state... [id=...]
+
+No changes. Your infrastructure matches the configuration.
+
+$ terraform apply
+local_file.pet: Refreshing state... [id=...]
+
+No changes. Your infrastructure matches the configuration.
+
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+```
+
+| Command | 1st run | 2nd run (no code change) |
+| --- | --- | --- |
+| `terraform init` | Downloads the `local` provider plugin | No-op — plugin already present |
+| `terraform plan` | Shows `1 to add` (resource doesn't exist yet) | Shows `No changes` (state already matches code) |
+| `terraform apply` | Creates `pets.txt`, prompts for `yes` | Nothing to do — exits immediately, no prompt |
+
+> This is why `plan` is safe to run repeatedly: Terraform always compares desired state (your code) against real state before deciding what, if anything, needs to happen.
+
 ---
 
 ## 3. Post-Deployment Verification
