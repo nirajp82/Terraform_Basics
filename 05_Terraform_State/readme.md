@@ -44,6 +44,18 @@ Refreshing state means asking every provider to re-read every tracked resource �
 
 A local `terraform.tfstate` file works for solo use but breaks down for teams — everyone needs the latest state, and no two people can run Terraform concurrently against it, or the result is unpredictable errors. The fix is a **remote state store** (Amazon S3, HashiCorp Consul, Terraform Cloud) shared securely across the team.
 
+## 10. State Contains Sensitive Information
+
+Every resource's full attribute set lands in state — for a VM, that includes its machine image, disk configuration, IP addresses, and SSH key name; for a database, it can include initial passwords. Local state stores all of this as **plain-text JSON**, unencrypted by default.
+
+## 11. Configuration and State Belong in Different Places
+
+`.tf` files are a good fit for a team's version control system (GitHub, GitLab, Bitbucket). `terraform.tfstate` should **not** go into a Git repository, given the sensitive data it holds — it belongs in a remote backend (S3, Google Cloud Storage, Azure Storage, Terraform Cloud) instead.
+
+## 12. Never Hand-Edit State
+
+`terraform.tfstate` is for Terraform's own internal use. Manual edits can desynchronize it from real infrastructure with no built-in way for Terraform to detect the change. Deliberate changes to tracked state should go through the `terraform state` command family instead.
+
 ---
 
 ## Knowledge Check Q&A
@@ -77,3 +89,12 @@ A local `terraform.tfstate` file works for solo use but breaks down for teams �
 
 **Q: Why is a local `terraform.tfstate` file a problem for teams?**
 **A:** Every member needs the latest state, and no two people can safely run Terraform at the same time against it — violating either causes unpredictable errors. Teams should use a remote state store like S3, Consul, or Terraform Cloud instead.
+
+**Q: Why is a Terraform state file considered sensitive?**
+**A:** It stores every resource's full attribute set in plain detail — machine images, disk configuration, IP addresses, SSH key names, and for databases, initial passwords — as unencrypted plain-text JSON when stored locally.
+
+**Q: Should `.tf` files and `terraform.tfstate` be stored the same way?**
+**A:** No. `.tf` files belong in a team's version control system. `terraform.tfstate` should not be committed to Git, given the sensitive data it holds — it belongs in a remote backend like S3, GCS, Azure Storage, or Terraform Cloud instead.
+
+**Q: Is it safe to hand-edit `terraform.tfstate` in a text editor?**
+**A:** No. State is for Terraform's own internal use; a manual edit that doesn't exactly match what Terraform expects can desynchronize it from real infrastructure. Use the `terraform state` command family for deliberate changes instead.
