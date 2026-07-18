@@ -78,6 +78,27 @@ Terraform is **idempotent** — re-running `init`/`plan`/`apply` against code th
 
 ---
 
+## 3. Terraform for .NET Developers
+
+For developers coming from C#, ASP.NET, and SQL Server, mapping Terraform concepts onto familiar tools speeds up the learning curve:
+
+| Terraform | .NET / SQL Server equivalent |
+| --- | --- |
+| `.tf` file | EF Core entity class + migration, combined |
+| Provider | NuGet package / ADO.NET driver / cloud SDK |
+| `terraform init` | `dotnet restore` |
+| `terraform.tfstate` | EF Core's change tracker snapshot — but persisted to disk between runs |
+| `terraform plan` | `dotnet ef migrations add` + reviewing the generated script |
+| `terraform apply` | `dotnet ef database update` |
+| Terraform Registry | nuget.org |
+| Terraform module | A shared class library / NuGet package you author |
+
+**Key mindset shift:** HCL is **declarative**, like a SQL `SELECT` — you describe the desired result, not the steps to get there, unlike a typical imperative C# `for` loop.
+
+**Where it breaks down:** losing `terraform.tfstate` has no clean .NET equivalent — EF Core's change tracker is rebuilt every app start, but Terraform's state is the *only* persisted record of what it manages between CLI runs. Terraform also has no automatic "down migration"; reverting means reapplying older `.tf` code.
+
+---
+
 ## Knowledge Check Q&A
 
 **Q: What are the general steps to install Terraform on any operating system?**
@@ -106,3 +127,6 @@ Terraform is **idempotent** — re-running `init`/`plan`/`apply` against code th
 
 **Q: If you run `terraform plan` and `terraform apply` twice in a row with no code changes, what happens the second time?**
 **A:** Nothing. `terraform init` is a no-op since the provider plugin is already downloaded, `terraform plan` reports "No changes," and `terraform apply` exits immediately without prompting — this is Terraform's idempotency in action.
+
+**Q: For a .NET developer, what's the closest equivalent to `terraform plan`, and what's the key difference between `terraform.tfstate` and EF Core's change tracker?**
+**A:** `terraform plan` is closest to `dotnet ef migrations add` plus reviewing the generated script — both compute a diff without executing it. Unlike EF Core's in-memory change tracker (rebuilt every app start), `terraform.tfstate` is persisted to disk and is Terraform's only record of what it manages between separate CLI runs.
