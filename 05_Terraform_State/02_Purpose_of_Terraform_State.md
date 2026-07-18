@@ -84,7 +84,7 @@ local_file.pet: Creation complete after 0s [id=...]
 
 ## 3. Purpose 1, Continued — Why State Remembers Dependencies After You Delete Them
 
-Up to this point, nothing here needed state to decide creation order — Terraform read the dependency straight out of the **configuration's** reference expressions. But watch what happens when the configuration itself no longer contains that information.
+Up to this point, nothing here needed state to decide creation order — Terraform read the dependency straight out of the **configuration's** reference expressions. That changes once the configuration itself no longer contains that information.
 
 ### Removing resources from the configuration
 
@@ -97,9 +97,9 @@ resource "local_file" "cat" {
 }
 ```
 
-Run `terraform apply`. Terraform detects both resources are missing from configuration but still present in state, so it plans to **destroy** them. But destroying resources in the wrong order can fail — you can't always safely tear down `random_pet.my_pet` before something that depends on it is gone. **Which one goes first?**
+Run `terraform apply`. Terraform detects both resources are missing from configuration but still present in state, so it plans to **destroy** them. Destroying resources in the wrong order can fail — `random_pet.my_pet` can't always be safely torn down before something that depends on it is gone — so Terraform needs to know which one to destroy first, and the configuration can no longer answer that: the reference expression that used to declare the dependency is gone along with the resource blocks.
 
-The configuration can no longer answer that — the reference expression that used to declare the dependency is gone along with the resource blocks. **This is exactly where state's tracked metadata matters.** The dependency edge (`local_file.pet` depends on `random_pet.my_pet`) is still recorded inside `terraform.tfstate` from when the resources were created, even though it no longer appears anywhere in `.tf` files.
+State's tracked metadata fills that gap. The dependency edge (`local_file.pet` depends on `random_pet.my_pet`) is still recorded inside `terraform.tfstate` from when the resources were created, even though it no longer appears anywhere in `.tf` files.
 
 Terraform reads that metadata from state and reverses it for deletion — **dependents before dependencies** — the same destroy-order rule from `08_Resource_Dependencies.md`, now driven by state instead of configuration:
 
@@ -210,7 +210,7 @@ flowchart LR
     style REMOTE fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
 
-Remote state stores are covered in depth in a later section, and Terraform Cloud gets its own dedicated section as well — for now, the key idea is: **local state does not scale past one person.**
+Remote state stores and Terraform Cloud are covered in depth in later sections. The key idea here: **local state does not scale past one person.**
 
 ---
 

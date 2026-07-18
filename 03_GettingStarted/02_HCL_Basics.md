@@ -25,7 +25,6 @@ resource "local_file" "pet" {
   filename = "/root/pets.txt"
   content  = "We love pets."
 }
-
 ```
 
 Breaking down this code line-by-line:
@@ -35,7 +34,7 @@ Breaking down this code line-by-line:
 | ------------------ | ------------------ | --------------- | ------------------------------------------------------------------------------------------------- |
 | `resource`         | **Block Type**     | Terraform       | ❌ No. Must be one of Terraform's block types (`resource`, `variable`, `output`, `provider`, etc.) |
 | `"local_file"`     | **Resource Type**  | Provider        | ❌ No. Must be a valid resource type provided by the installed provider.                           |
-| `"pet"`            | **Resource Name**  | You             | ✅ Yes. Any meaningful name (e.g., `pet`, `notes`, `my_file`).   A user-defined logical name that helps Terraform identify this specific resource within your configuration and allows you to reference it elsewhere in your Terraform code.                                  |
+| `"pet"`            | **Resource Name**  | You             | ✅ Yes. Any meaningful name (e.g., `pet`, `notes`, `my_file`) — a logical name that identifies this specific resource within the configuration and lets you reference it elsewhere in your Terraform code.                                  |
 | `filename`         | **Argument Name**  | Provider        | ❌ No. Must be a supported argument for `local_file`.                                              |
 | `"/root/pets.txt"` | **Argument Value** | You             | ✅ Yes. Any valid file path.                                                                       |
 | `content`          | **Argument Name**  | Provider        | ❌ No. Must be a supported argument for `local_file`.                                              |
@@ -88,8 +87,9 @@ local_file.notes
 ```
 
 #### Create EC2
--  Creates an AWS EC2 virtual machine named webserver using the specified Amazon Machine Image (AMI) and launches it as a t2.micro instance.
--  
+
+Creates an AWS EC2 virtual machine named `webserver`, using the specified Amazon Machine Image (AMI), launched as a `t2.micro` instance:
+
 ```hcl
 resource "aws_instance" "webserver" {
   ami           = "ami-0c2f25c1f66a1ff4d"
@@ -97,7 +97,9 @@ resource "aws_instance" "webserver" {
 }
 ```
 
-- Creates an AWS S3 bucket named webserver-bucket-org-2207 and sets its access control list (ACL) to private, meaning only the bucket owner has access by default.
+#### Create S3 Bucket
+
+Creates an AWS S3 bucket named `webserver-bucket-org-2207` with its access control list (ACL) set to private, so only the bucket owner has access by default:
 
 ```hcl
 resource "aws_s3_bucket" "data" {
@@ -135,9 +137,9 @@ Executes the planned changes on the target platform.
 
 * **Mechanism:** It presents the execution plan one final time and pauses for user confirmation (`yes`). Once confirmed, Terraform executes the API actions to create, update, or delete the resources.
 
-### FAQ: When Do You Run `plan` vs. `apply`?
+### `plan` vs. `apply`: When to Run Each
 
-A common point of confusion for beginners is whether these two commands are interchangeable. They are not — `plan` is a **preview**, and `apply` is the **execution**.
+`plan` and `apply` are not interchangeable: `plan` is a **preview**, `apply` is the **execution**.
 
 * Run `terraform plan` **as often as you like** — it's read-only and never changes anything. To compute its diff, it compares three things, all tied to the **same project folder** (the directory where you ran `terraform init`, e.g. `/root/terraform-local-file`):
 
@@ -253,17 +255,17 @@ Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
 
 ### What Does "Refreshing state..." Actually Do?
 
-Notice the `local_file.pet: Refreshing state... [id=...]` line in both runs above. Before computing any diff, `plan` (and `apply`) performs an implicit **refresh** step: it re-reads the *real* resource — in this case, the actual bytes currently sitting in `/root/pets.txt` on disk — and updates its in-memory view of "current state" to match reality, before comparing that against your `.tf` code. This is what lets Terraform catch **drift**: changes made to the real resource *outside* of Terraform.
+The `local_file.pet: Refreshing state... [id=...]` line appearing in both runs above is that implicit refresh: before computing any diff, `plan` (and `apply`) re-reads the *real* resource — in this case, the actual bytes currently sitting in `/root/pets.txt` on disk — and updates its in-memory view of "current state" to match reality, before comparing that against your `.tf` code. This is what lets Terraform catch **drift**: changes made to the real resource *outside* of Terraform.
 
 **3rd run — someone edits `pets.txt` directly, filename unchanged**
 
-Say a teammate bypasses Terraform entirely and overwrites the file's content — the resource's **address** (`local_file.pet`) and **filename** argument haven't changed, only what's actually written to disk:
+Suppose a teammate bypasses Terraform entirely and overwrites the file's content. The resource's **address** (`local_file.pet`) and **filename** argument haven't changed — only what's actually written to disk:
 
 ```bash
 $ echo "I hate pets." > /root/pets.txt
 ```
 
-Your `.tf` code still says `content = "We love pets."` — nobody touched it. Now run the workflow again:
+The `.tf` code itself is untouched — it still says `content = "We love pets."`. Now run the workflow again:
 
 ```bash
 $ terraform init
@@ -314,8 +316,8 @@ local_file.pet: Creation complete after 0s [id=...]
 Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
 ```
 
-**Why this is a replace, not a plain update:** Terraform still identifies this as the same tracked resource — the `local_file.pet` **address** and the `filename` argument didn't change. But `local_file` has no in-place update path at all: the provider only implements create and delete, so **every** argument — including `content` — is force-new. Any change to it, whether from your own edit or from someone else's drift, destroys the old file and creates a brand-new one (with a brand-new `id`, since the ID is derived from the file). Terraform always treats your **`.tf` code as the source of truth**: on `apply`, it deletes `/root/pets.txt` and rewrites it with `"We love pets."`, discarding the manual edit. If you actually *wanted* to keep `"I hate pets."`, you'd need to update `content` in the `.tf` file itself — otherwise Terraform will keep "correcting" the drift (via replace) on every future apply.
->
+**Why this is a replace, not a plain update:** Terraform still identifies this as the same tracked resource — the `local_file.pet` **address** and the `filename` argument didn't change. But `local_file` has no in-place update path at all: the provider only implements create and delete, so **every** argument — including `content` — is force-new. Any change to it, whether from your own edit or from someone else's drift, destroys the old file and creates a brand-new one (with a brand-new `id`, since the ID is derived from the file). Terraform always treats your **`.tf` code as the source of truth**: on `apply`, it deletes `/root/pets.txt` and rewrites it with `"We love pets."`, discarding the manual edit. To keep `"I hate pets."`, you'd need to update `content` in the `.tf` file itself — otherwise Terraform keeps "correcting" the drift (via replace) on every future apply.
+
 > Not every Terraform resource behaves this way — many cloud resources support genuine in-place updates for most arguments. `local_file` is a simple, deliberately minimal resource that only supports create/delete.
 
 ---

@@ -16,7 +16,7 @@ A **resource** is the fundamental unit Terraform manages — from a local text f
 * **`local_file`** — creates and manages a file on the local filesystem.
 * **`random_pet`** — generates a random identifier (a "pet name").
 
-Once these fundamentals click, the exact same lifecycle applies to real cloud resources later in the course.
+Once these fundamentals are understood, the exact same lifecycle applies to real cloud resources later in the course.
 
 ---
 

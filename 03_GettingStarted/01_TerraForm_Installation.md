@@ -6,14 +6,12 @@ This document outlines the installation process for Terraform, the configuration
 
 ## 1. Installing Terraform
 
-Terraform is distributed by HashiCorp as a **single, compiled binary/executable file**.
+Terraform is distributed by HashiCorp as a **single, compiled binary/executable file** — there is no complex installer.
 
-* **Download Source:** Available from the official download section at `www.terraform.io`.
-* **Installation Steps:** 1. Download the executable file for your operating system (supported on Windows, macOS, Linux, and other Unix distributions).
-2. Copy or move the downloaded binary into your system's execution path (e.g., `/usr/local/bin` on Linux/macOS or updating the `PATH` environment variable in Windows).
-* **Verification:** Run the following command in your terminal or command prompt to verify a successful installation:
+* **Download source:** the official download section at `www.terraform.io`, which offers builds for Windows, macOS, Linux, and other Unix distributions.
+* **Manual install:** download the executable for your OS, then copy or move it into your system's execution path (e.g., `/usr/local/bin` on Linux/macOS, or add its folder to the `PATH` environment variable on Windows).
 
-Here are the most common and straightforward commands to install Terraform on both Windows and macOS using their respective package managers.
+Package managers automate that same download-and-path step. The commands below cover macOS and Windows.
 
 ### macOS (Using Homebrew)
 
@@ -22,13 +20,10 @@ If you have Homebrew installed on your Mac, you can install the official HashiCo
 ```bash
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
-
 ```
-* **`brew tap hashicorp/tap`**
-This command tells Homebrew to add HashiCorp's official repository (known as a "tap") to your system's list of software sources. This ensures you are downloading the official, up-to-date software directly from the creators (HashiCorp) rather than a community-maintained version.
 
-* **`brew install hashicorp/tap/terraform`**
-This command instructs Homebrew to locate the `terraform` package specifically inside that newly added HashiCorp repository, download it, and install it on your machine.
+* **`brew tap hashicorp/tap`** — adds HashiCorp's official repository (a "tap") to Homebrew's list of sources, so the install pulls from HashiCorp directly rather than a community-maintained package.
+* **`brew install hashicorp/tap/terraform`** — locates the `terraform` package inside that tap, downloads it, and installs it.
 
 ### Windows (Using Winget or Chocolatey)
 
@@ -38,26 +33,23 @@ Depending on which package manager you prefer on Windows, open your Command Prom
 
 ```powershell
 winget install -e --id Hashicorp.Terraform
-
 ```
 
 **Option 2: Using Chocolatey**
 
 ```powershell
 choco install terraform
-
 ```
 
 ### Verify the Installation
 
-Regardless of which operating system you are using, you can verify that Terraform installed correctly and is added to your system's PATH by running:
+On any operating system, confirm Terraform installed correctly and is on your `PATH` by running:
 
 ```bash
 terraform version
-
 ```
-*(If the installation was successful, this will output the current version of Terraform installed on your machine).*
 
+A successful install prints the installed Terraform version.
 
 ---
 
@@ -66,12 +58,10 @@ terraform version
 Terraform configurations are written in **HashiCorp Configuration Language (HCL)**.
 
 * **File Extension:** All Terraform configuration files must end with the `.tf` extension.
-* **Tools:** You can use any text editor or Integrated Development Environment (IDE) to write these files, such as:
-* **Windows:** Notepad, Notepad++
-* **Linux:** Vim, Emacs, Nano
-* **Cross-platform:** VS Code, IntelliJ, etc.
-
-
+* **Tools:** Any text editor or IDE can write these files, for example:
+  * **Windows:** Notepad, Notepad++
+  * **Linux:** Vim, Emacs, Nano
+  * **Cross-platform:** VS Code, IntelliJ, etc.
 
 ---
 
@@ -99,7 +89,7 @@ Once these basics are understood, the exact same lifecycle principles apply dire
 
 ### Topic Summary: Installing Terraform
 
-Terraform installs as a single, platform-agnostic binary that simply needs to be placed into your system's execution path. Once installed, infrastructure architectures are defined inside files using the `.tf` extension written in HCL. The core building block of any Terraform plan is the **Resource**—which can represent anything from a physical local file to cloud-native database clusters and permissions policies. To learn the underlying lifecycle mechanics cleanly, initial practice utilizes local/utility resources (`local_file`) before scaling up to public cloud vendors.
+Terraform installs as a single, platform-agnostic binary placed into your system's execution path — no separate installer required. Infrastructure is then defined in `.tf` files written in HCL. The core building block of any Terraform configuration is the **Resource**, which can represent anything from a local file to cloud database clusters and permissions policies. Initial practice uses local/utility resources (`local_file`) to teach the lifecycle mechanics before scaling up to public cloud providers.
 
 ### Knowledge Check Q&A
 

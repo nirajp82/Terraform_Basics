@@ -154,17 +154,7 @@ A common point of confusion in a migration: does *every* record you read count t
 | **Persists in `terraform.tfstate` long-term?** | **Yes** — every one you add stays in state forever, growing the file | No — re-fetched fresh each run; not accumulated run over run |
 | **Drives long-term state size?** | **Yes** | **No** — only adds to that single run's peak memory while the read happens |
 
-Applied to an Okta → CyberArk migration:
-
-* **Okta** (3 million users) is read via `data "okta_user"` blocks. Terraform queries whatever it needs from the Okta API on that run — but these users are **not** what makes `terraform.tfstate` grow. Okta is only ever a source to read from, never something Terraform manages.
-* **CyberArk** (2 million `cyberark_user` resources, growing toward 3 million) are `resource` blocks Terraform **manages**. Every one of them lives permanently in `terraform.tfstate` — and that count is what actually drives memory, plan time, and disk usage.
-
-#### Small lab vs. large migration
-
-| Scenario | `resource` blocks tracked in state | What Terraform holds in memory during `plan`/`apply` |
-| --- | --- | --- |
-| **Lab** (`main.tf` + `cat.tf`) | 2 `local_file` resources | Negligible — state and plan graph are tiny |
-| **Okta → CyberArk migration** | ~2–3 million `cyberark_user` resources (Okta's 3M is read-only, never stored long-term) | **Massive** — state holds millions of resource IDs, attributes, and dependency edges |
+Applied to an Okta → CyberArk migration: Okta's 3 million users are read via `data "okta_user"` blocks — queried from the Okta API each run, never stored in state. CyberArk's 2 million `cyberark_user` resources (growing toward 3 million) are `resource` blocks Terraform manages — every one persists in `terraform.tfstate`, and that count is what drives memory, plan time, and disk usage. A two-resource lab (`main.tf` + `cat.tf`) sits at the opposite end of the same scale: negligible state, a trivial plan graph.
 
 #### What happens during that `apply`
 
@@ -201,41 +191,17 @@ flowchart TD
 | **Plan/apply peak memory** | Managed resources in state + in-flight data-source/API reads | **GB-scale RAM**, long runtimes — often needs remote state + parallelism limits |
 | **Number of `.tf` files** | File count only | **Does not matter** if total resource count is the same |
 
-> **Key takeaway:** File count never matters. Only `resource` blocks accumulate permanently in state — a `data` block reads live and moves on without growing state. Two to three million managed resources, whether split across 1 file or 500, is what forces enterprise migrations toward **batching**, **remote state**, **`-target`**, and **split workspaces**.
+> **Key takeaway:** File layout is irrelevant to cost — only the count of managed `resource` blocks in state is. At millions of resources, that's what forces enterprise migrations toward **batching**, **remote state**, **`-target`**, and **split workspaces**.
 
 ---
 
-### Subdirectories and folders outside the configuration directory
+### Loading a Subdirectory Explicitly: Child Modules
 
-#### Can you put `.tf` files in a subdirectory?
-
-**Not as part of the root configuration automatically.** Terraform does **not** scan subfolders for extra `.tf` files to merge into the root module.
-
-```text
-my-terraform-project/
-├── main.tf                    ← LOADED (root module)
-└── users/
-    └── cyberark_users.tf      ← NOT loaded automatically
-```
-
-To use code in a subdirectory, you must declare a **child module**:
-
-```hcl
-# main.tf
-module "users" {
-  source = "./users"           ← tells Terraform to load ./users/ as a separate module
-}
-```
-
-Terraform then loads `users/` as its **own** configuration scope — not merged flat into root.
-
-#### Can you run Terraform from a parent folder or include a sibling directory?
-
-**No.** Terraform only uses the directory where you run the command.
+The boundary rule from the table above — root `.tf` files load, subfolders and sibling/parent directories don't — applies regardless of what the subfolder contains or where it sits relative to the working directory:
 
 ```text
 projects/
-├── okta-export/               ← sibling folder — NOT loaded
+├── okta-export/               ← sibling folder — NOT loaded, even if it has .tf files
 │   └── users.tf
 └── cyberark-migration/        ← configuration directory — run commands HERE
     ├── main.tf
@@ -244,13 +210,16 @@ projects/
             └── main.tf        ← loaded only via module "users" { source = "./modules/users" }
 ```
 
-| Pattern | Allowed? | How it works |
-| --- | --- | --- |
-| `.tf` files in **root config directory** | **Yes** | Auto-merged into one configuration |
-| `.tf` files in **subdirectory** without `module` block | **No** | Ignored by root module |
-| `.tf` files in **subdirectory** with `module` block | **Yes** | Loaded as a **child module** (separate scope) |
-| `.tf` files in **parent or sibling** folder | **No** | Never discovered — wrong working directory |
-| `module` source pointing to **another repo/path** | **Yes** | `source = "../other-project"` or `source = "git::https://..."` — explicit only |
+The one way to bring a subfolder's `.tf` files into scope is a **child module**: a `module` block in a root `.tf` file that points `source` at the subfolder.
+
+```hcl
+# main.tf
+module "users" {
+  source = "./modules/users"   ← tells Terraform to load this folder as a separate module
+}
+```
+
+Terraform loads `modules/users/` as its **own** configuration scope — not merged flat into root — with its own variables and outputs. The same `source` argument also accepts a path outside the current repo (`../other-project`) or a Git/registry URL (`git::https://...`); either way, loading only happens through an explicit `module` block, never automatically.
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%

@@ -20,8 +20,6 @@ Terraform is a widely used, open-source Infrastructure as Code (IaC) tool develo
 
 Providers are plugins that help Terraform connect to different platforms and services. Providers allow Terraform to create, update, and manage resources by using the platform's APIs.
 
-Here's a simpler and shorter version:
-
 Some common providers are:
 
 * **Cloud Platforms:** AWS, Azure, Google Cloud Platform (GCP)
@@ -53,13 +51,13 @@ HCL is a **declarative** language. This means you write code to define the **des
 
 ## The Terraform Workflow: Three Core Phases
 
-Terraform executes its declarative logic through a standard three-phase lifecycle to safely move, configure, and manage identity objects:
+Terraform executes its declarative logic through a standard three-phase lifecycle. The example below each phase applies it to an identity migration (Okta → CyberArk), the worked example used throughout the rest of this document:
 
 * **Init (`terraform init`):** Initializes the working directory containing your configuration files (`.tf`). During an identity migration, this command detects your source or target IdP configurations and downloads the specific Provider plugins (such as the Okta or CyberArk providers) required to communicate with those respective identity APIs.
 * **Plan (`terraform plan`):** Evaluates the current state of your target IdP versus the desired state defined in your code. For a migration, it drafts an execution plan outlining exactly which user accounts will be provisioned, which security groups or roles will be created, and which access policies will be updated.
 * **Apply (`terraform apply`):** Executes the generated plan. Terraform makes high-speed, secure API calls to your target IdP to physically build the users, assign them to their respective roles, and configure their application access to perfectly match your migration code.
 
-> **Note on Drift:** Identity environments are dynamic. If an administrator manually changes a user's role assignment or updates an application policy directly inside the IdP admin dashboard (causing "configuration drift"), running a subsequent `terraform apply` will automatically detect that unauthorized change. Terraform will then fire the necessary API commands to fix the environment, ensuring the target IdP immediately matches your master migration code.
+> **Note on Drift:** Identity environments are dynamic. If an administrator manually changes a user's role assignment or updates an application policy directly inside the IdP admin dashboard (causing "configuration drift"), running a subsequent `terraform apply` will automatically detect that unauthorized change. Terraform then issues the necessary API calls to fix the environment, bringing the target IdP back in line with your migration code.
 
 ---
 
@@ -188,18 +186,14 @@ Terraform instructs the CyberArk provider to execute the changes. The provider c
 
 ### 6. State (Very Important)
 
-Terraform stores a state file locally (or remotely) called `terraform.tfstate`. It maps your written code to the real CyberArk database IDs.
+As introduced above, `terraform.tfstate` maps your written code to the real CyberArk database IDs:
 
 * `cyberark_user.john` → CyberArk ID: 101
 * `cyberark_group.finance` → CyberArk ID: 501
 
-Terraform uses this state to remember what already exists, avoid creating duplicates, and track changes later.
-
 ### 7. Data Source (Read Only)
 
-**Why use this?** Sometimes CyberArk has built-in objects or required settings that *never existed in Okta*, but you still need to use them for your migration.
-
-For example, CyberArk might have a default "Global Authentication Policy" that was created automatically when you bought the software. You do not want Terraform to create a duplicate policy, but you *do* need to attach your migrating Okta users to it. Instead of creating it, Terraform uses a Data Source to simply look up its ID.
+As introduced above, a Data Source lets Terraform read an object it doesn't manage. CyberArk might have a default "Global Authentication Policy" that was created automatically when you bought the software — Terraform shouldn't create a duplicate, but your migrating users still need to attach to it. A Data Source looks up its ID instead of creating it.
 
 ```hcl
 data "cyberark_policy" "default_auth" {
