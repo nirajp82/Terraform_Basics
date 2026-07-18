@@ -139,7 +139,15 @@ Executes the planned changes on the target platform.
 
 A common point of confusion for beginners is whether these two commands are interchangeable. They are not — `plan` is a **preview**, and `apply` is the **execution**.
 
-* Run `terraform plan` **as often as you like**. It only reads your code and the current state/real infrastructure to compute a diff — it never changes anything. Use it after every edit, in pull request reviews, or in a CI pipeline to catch drift before anyone applies.
+* Run `terraform plan` **as often as you like** — it's read-only and never changes anything. To compute its diff, it compares three things, all tied to the **same project folder** (the directory where you ran `terraform init`, e.g. `/root/terraform-local-file`):
+
+  | Source | Where it lives | What it represents |
+  | --- | --- | --- |
+  | Your code | The `*.tf` files in the project folder (e.g., `local.tf`) | **Desired state** — what you wrote and want to exist |
+  | State file | `terraform.tfstate`, written into that same project folder by `terraform init`/`apply` | **Last known state** — what Terraform believes it already created |
+  | Real infrastructure | Not a file — queried live via the Provider API (e.g., checking whether `/root/pets.txt` actually exists on disk) | **Actual state** — what's really out there right now |
+
+  Use it after every edit, in pull request reviews, or in a CI pipeline to catch drift before anyone applies.
 * Run `terraform apply` **only when you're ready to make the change for real**. Under the hood, `apply` re-runs the same plan logic, shows you the identical diff, and pauses for a `yes` confirmation before it touches any real infrastructure — unless you skip the prompt with `-auto-approve` or feed it a previously saved plan file.
 
 ```mermaid
@@ -147,7 +155,7 @@ A common point of confusion for beginners is whether these two commands are inte
 sequenceDiagram
     participant U as User
     participant T as Terraform CLI
-    participant S as State File
+    participant S as State File (terraform.tfstate)
     participant P as Provider API
 
     rect rgb(20, 45, 75)

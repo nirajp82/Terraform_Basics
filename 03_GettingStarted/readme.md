@@ -54,6 +54,28 @@ Reference a resource elsewhere in code as `<Resource Type>.<Resource Name>` — 
 
 After deploying, `terraform show` prints the full runtime state of everything Terraform manages. The **official Terraform Registry documentation** is the definitive source for which arguments are required vs. optional for any resource type.
 
+### What Does `plan` Actually Compare?
+
+`terraform plan` is safe to run as often as you like — it's read-only. It computes its diff from three sources, all tied to the same project folder (the directory where `terraform init` was run):
+
+| Source | Where it lives | Represents |
+| --- | --- | --- |
+| Your code | `*.tf` files in the project folder | Desired state |
+| State file | `terraform.tfstate` in the same project folder | Last known state |
+| Real infrastructure | Not a file — queried live via the Provider API | Actual state right now |
+
+`terraform apply`, by contrast, should only be run when you're ready to make the change for real — it re-runs the same plan logic, shows the same diff, and pauses for a `yes` confirmation before touching anything.
+
+### Idempotency: Running the Workflow Twice
+
+Terraform is **idempotent** — re-running `init`/`plan`/`apply` against code that hasn't changed should do nothing the second time:
+
+| Command | 1st run (resource doesn't exist) | 2nd run (no code change) |
+| --- | --- | --- |
+| `terraform init` | Downloads the provider plugin | No-op — plugin already present |
+| `terraform plan` | Shows `1 to add` | Shows `No changes` |
+| `terraform apply` | Creates the resource, prompts for `yes` | Nothing to do — exits immediately |
+
 ---
 
 ## Knowledge Check Q&A
@@ -78,3 +100,9 @@ After deploying, `terraform show` prints the full runtime state of everything Te
 
 **Q: How can you find out which configuration arguments are required or optional for a resource type?**
 **A:** Check that resource's page on `registry.terraform.io` — it lists every argument and marks each as required or optional.
+
+**Q: When `terraform plan` computes its diff, exactly which files does it compare, and from where?**
+**A:** It compares the `*.tf` files and the `terraform.tfstate` file, both in the same project folder (the directory where `terraform init` was run), against the real infrastructure it queries live via the Provider API. The provider side isn't a file — Terraform asks the actual platform (e.g., the filesystem or a cloud API) what currently exists.
+
+**Q: If you run `terraform plan` and `terraform apply` twice in a row with no code changes, what happens the second time?**
+**A:** Nothing. `terraform init` is a no-op since the provider plugin is already downloaded, `terraform plan` reports "No changes," and `terraform apply` exits immediately without prompting — this is Terraform's idempotency in action.
