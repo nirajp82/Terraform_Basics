@@ -75,11 +75,57 @@ Two outcomes are possible:
 
 Refresh always runs first and unconditionally, on every `plan` and `apply`, regardless of whether anything actually changed. Terraform has no way to know whether there's a difference until after refreshing — so the diff is *discovered* by the compare step that follows, never the reason refresh ran in the first place.
 
-If someone deletes `root/pet.txt` directly, outside Terraform, the next `plan` still follows the same sequence: refresh checks the path, finds nothing there, and updates state to show the resource is gone; compare then finds that `main.tf` still declares the file should exist, while refreshed state says it doesn't. The plan reports a **create** — not "no changes" — using the exact mechanism that Section 8 walks through for the case where the file's *content* changes instead of disappearing entirely.
+If someone deletes `root/pet.txt` directly, outside Terraform, the next `plan` still follows the same sequence: refresh checks the path, finds nothing there, and updates state to show the resource is gone; compare then finds that `main.tf` still declares the file should exist, while refreshed state says it doesn't. The plan reports a **create** — not "no changes" — using the exact mechanism that Section 9 walks through for the case where the file's *content* changes instead of disappearing entirely.
 
 ---
 
-## 4. `terraform plan` Before Any State Exists
+## 4. Real Infrastructure Illustration — EC2 and RDS PostgreSQL
+
+This lesson's hands-on demo uses `local_file` and `random_pet` because they run without a cloud account, matching the rest of the course. The mechanics behind state work exactly the same way on real infrastructure. Here's the same story — create, refresh, compare, drift — told with an EC2 instance and an RDS PostgreSQL database:
+
+```hcl
+resource "aws_instance" "web" {
+  ami           = "ami-0c101f26f147fa7fd"
+  instance_type = "t3.micro"
+}
+
+resource "aws_db_instance" "app_db" {
+  identifier        = "app-db"
+  engine            = "postgres"
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
+  username          = "app_user"
+  password          = var.db_password
+}
+```
+
+Applying this configuration launches the EC2 instance and provisions the database. AWS assigns the instance an ID at launch — e.g. `i-0abcd1234efgh5678` — and Terraform stores that ID, along with every other attribute AWS returns (AMI, instance type, IP addresses, tags), in `terraform.tfstate`. For the database, AWS uses the `identifier` you chose (`app-db`) as its real identity, and Terraform records that too.
+
+On every later `plan` or `apply`, refresh uses those stored values to look each object up again — a `DescribeInstances` call for the EC2 instance, filtered to its exact ID, and a `DescribeDBInstances` call for the database, filtered to its identifier. Each call returns the object's full current attribute set in one response, or reports it missing, and Terraform updates its in-memory state accordingly before comparing anything against `main.tf`.
+
+Drift shows up the same way it does for a local file. Suppose someone terminates `aws_instance.web` by hand in the AWS Console. The next `plan` still refreshes first: it looks up that instance ID, gets back "not found," and updates state to show the instance is gone. Compare then finds that `main.tf` still declares the instance should exist, while refreshed state says it doesn't — so the plan reports a **create**, not "no changes."
+
+Not every argument change forces replacement here, either. Changing `instance_type` can often apply in place, while changing `ami` forces replacement, since the machine image is baked in at launch. State is what lets Terraform tell, argument by argument, which kind of change it's looking at.
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart TD
+    CREATE["1. Create — once<br>RunInstances / CreateDBInstance<br>returns instance id, identifier, attributes"] --> STATE0["terraform.tfstate written"]
+    STATE0 --> REFRESH["2. Refresh — every later plan/apply<br>DescribeInstances / DescribeDBInstances<br>by stored id / identifier"]
+    REFRESH --> COMPARE["3. Compare — always after refresh<br>refreshed state vs. main.tf"]
+    COMPARE --> DECISION["no changes / update in place /<br>replace / create"]
+    DECISION -.->|"next plan/apply"| REFRESH
+
+    style CREATE fill:#312e81,stroke:#a78bfa,color:#ffffff
+    style STATE0 fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style REFRESH fill:#374151,stroke:#9ca3af,color:#ffffff
+    style COMPARE fill:#374151,stroke:#9ca3af,color:#ffffff
+    style DECISION fill:#312e81,stroke:#a78bfa,color:#ffffff
+```
+
+---
+
+## 5. `terraform plan` Before Any State Exists
 
 Running `terraform plan` for the first time starts by refreshing state in memory. Since this is the very first run, there is no state recorded at all — nothing to refresh. Terraform prints nothing related to a state refresh, because there's nothing to look up. From that absence, Terraform concludes that no resources are currently provisioned, and builds an execution plan of **create**:
 
@@ -98,7 +144,7 @@ No state recorded yet means no resources exist yet, as far as Terraform is conce
 
 ---
 
-## 5. `terraform apply` Creates the Resource — and the State File
+## 6. `terraform apply` Creates the Resource — and the State File
 
 Running `terraform apply` follows the same first step: refresh in-memory state, find none, proceed with the create plan. Once confirmed, Terraform creates the `local_file` resource and assigns it a unique ID:
 
@@ -128,7 +174,7 @@ flowchart LR
 
 ---
 
-## 6. Running `apply` Again — Refresh Confirms Nothing Changed
+## 7. Running `apply` Again — Refresh Confirms Nothing Changed
 
 Run `terraform apply` a second time, with no configuration changes:
 
@@ -158,7 +204,7 @@ flowchart TD
 
 ---
 
-## 7. Inside `terraform.tfstate`
+## 8. Inside `terraform.tfstate`
 
 The state file is a JSON data structure mapping real-world infrastructure to the resource definitions in the configuration. It holds the complete record of everything Terraform has created. For the single `local_file.pet` resource, it records:
 
@@ -198,7 +244,7 @@ Terraform treats this file as the single source of truth for `plan` and `apply` 
 
 ---
 
-## 8. Changing the Configuration — Detecting Drift
+## 9. Changing the Configuration — Detecting Drift
 
 Update `main.tf` so the `content` argument changes:
 
@@ -263,7 +309,7 @@ Configuration and state are in sync again. With no difference remaining between 
 
 ---
 
-## 9. State Is Always Created — It Is Non-Optional
+## 10. State Is Always Created — It Is Non-Optional
 
 This example uses a single resource, so the state file tracks a single entry. Real configurations often contain numerous resources across several providers. Regardless of infrastructure size:
 
