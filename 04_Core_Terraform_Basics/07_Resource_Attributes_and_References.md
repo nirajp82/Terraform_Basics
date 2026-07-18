@@ -213,7 +213,21 @@ After changing `content` from a hardcoded string to **`${random_pet.my_pet.id}`*
 terraform plan
 ```
 
-Terraform detects that **`local_file.pet`** must be **replaced**, not updated in place — `local_file`'s `content` argument is a **force-new** attribute (the provider only implements create and delete for this resource, no update), so any change to it destroys the old file and creates a new one, with a brand-new **`id`**:
+Terraform detects that **`local_file.pet`** must be **replaced**, not updated in place — `local_file`'s `content` argument is a **force-new** attribute, so any change to it destroys the old file and creates a new one, with a brand-new **`id`**:
+
+### Why replace instead of overwrite?
+
+This isn't a Terraform core limitation — it's a choice made in the **provider's own code**. Every resource type's Go implementation declares, per argument, whether a changed value can be applied **in place** or must **force replacement** (a **`RequiresReplace`** plan modifier). Terraform's plan phase reads that declaration before deciding what to do.
+
+For `local_file` ([`hashicorp/terraform-provider-local`](https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file)), **every settable argument** — `filename`, `content`, `content_base64`, `source`, `file_permission`, `directory_permission`, `sensitive_content` — is marked `RequiresReplace`. The provider does technically contain an `Update` function, but it never runs in practice: since *every* argument forces replacement, the plan phase always resolves to "destroy + create" before `Update` would get a chance to fire.
+
+| Question | Answer |
+| --- | --- |
+| Who decides replace vs. update? | The **provider**, via a `RequiresReplace` plan modifier on each argument in its schema — not Terraform core |
+| Does `local_file` have any updatable arguments? | **No** — every argument is `RequiresReplace` |
+| Why does the provider choose this design? | The computed hash attributes (`content_md5`, `content_sha256`, …) and `id` are derived **at creation time**; recreating the resource guarantees they can never drift from what's actually on disk, with one simple code path instead of partial-update logic |
+
+> **.NET analogy:** think of `local_file` like a `record` with only `init`-only properties. There's no setter to call after construction — "changing" a value means building a brand-new instance. The provider exposes `Create` and `Delete`; there's no real `Update` path to call.
 
 ```diff
   # local_file.pet must be replaced
