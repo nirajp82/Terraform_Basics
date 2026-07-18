@@ -109,6 +109,23 @@ The exact same three sources, and the exact same refresh-then-compare pipeline, 
 
 ---
 
+## 2b. How Refresh Actually Checks "Is It Still There?"
+
+It's fair to ask: concretely, *how* does Terraform check whether an EC2 instance created six months ago still exists? It doesn't guess, and it doesn't search by name or tags. It looks up **one specific ID** — the same `id` that got recorded in state the moment the resource was created.
+
+**Step by step:**
+
+1. **At creation**, the AWS API call Terraform's provider makes to launch the instance (`RunInstances`, under the hood) returns a response that includes AWS's own generated **instance ID** — e.g. `i-0abcd1234efgh5678`. Terraform writes that exact ID into `terraform.tfstate` as the resource's `id` attribute. From this point on, that ID *is* the resource's identity as far as Terraform is concerned.
+2. **On every later `refresh`**, Terraform reads that stored ID back out of state and calls the provider's **Read** operation for it — for EC2 this is a `DescribeInstances` API call filtered to that exact instance ID, not a scan of "all instances that look like `aws_instance.web`."
+3. **Two possible answers come back:**
+   - **Found** — AWS returns the instance's current attributes (state, IP, tags, etc.). Terraform copies those into its in-memory state, and the resource is confirmed to still exist.
+   - **Not found** (AWS returns an error like `InvalidInstanceID.NotFound`) — Terraform concludes the instance no longer exists. It removes that resource from the refreshed state.
+4. **Then the compare step runs as always:** `main.tf` still says `aws_instance.web` should exist; refreshed state now says it doesn't (case 3b) or confirms it does with current attributes (case 3a). A "not found" result is exactly what turns into the **create** plan described in Section 2a's drift example.
+
+> **The ID is the whole trick.** Terraform never re-derives "which real object is mine" from scratch — it stores the provider-assigned ID once, at creation, and from then on every check is a direct lookup by that ID. `random_pet`, `local_file`, `aws_instance`, `aws_db_instance` — every resource type follows this same pattern, only the specific "describe by ID" API call changes per provider.
+
+---
+
 ## 3. `terraform plan` Before Any State Exists
 
 Running `terraform plan` for the first time starts by trying to **refresh state in-memory**. "Refreshing" means Terraform asks the provider to re-**Read** every resource currently recorded in state, so its in-memory copy reflects reality before it compares anything to your configuration.
@@ -404,5 +421,13 @@ Answer each question on your own first, then read the explanation below it.
 **If someone manually terminates an `aws_instance` in the AWS Console, what does the next `terraform plan` show — "no changes" or a plan to create it?**
 
 > A plan to **create** it. The refresh step asks AWS to Read that instance ID, finds it's gone, and updates the in-memory state to reflect that. Comparing the refreshed state (now "doesn't exist") against `main.tf` (still declares it should exist) produces a create — the same refresh-then-compare logic that catches any other drift.
+
+---
+
+### 11 · How refresh actually finds "the" resource
+
+**Concretely, how does Terraform know whether a specific EC2 instance created six months ago is still there — does it search by name or tags?**
+
+> Neither. Terraform looks up the exact **`id`** that was recorded in state back when the instance was created (e.g. `i-0abcd1234efgh5678`), and calls the provider's **Read** operation for that specific ID (a `DescribeInstances` call filtered to it, for EC2). If the API returns the instance, it still exists; if it returns "not found," Terraform treats it as gone. The stored ID — not a name or tag search — is what makes the lookup possible.
 
 ---
