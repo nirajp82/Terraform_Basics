@@ -39,8 +39,5 @@ Each module folder below has its own `readme.md` chapter summary, and each numbe
 ### [06 — Working with Terraform](06_WorkingWithTerraForm/readme.md)
 
 1. [Terraform Commands](06_WorkingWithTerraForm/01_Terraform_Commands.md)
-
-### [07 — Mutable and Immutable Infrastructure](07_Mutable_And_Immutable_Infrastructure/readme.md)
-
-1. [Mutable vs. Immutable Infrastructure](07_Mutable_And_Immutable_Infrastructure/01_Mutable_vs_Immutable_Infrastructure.md)
-2. [Lifecycle Rules](07_Mutable_And_Immutable_Infrastructure/02_Lifecycle_Rules.md)
+2. [Mutable vs. Immutable Infrastructure](06_WorkingWithTerraForm/02_Mutable_vs_Immutable_Infrastructure.md)
+3. [Lifecycle Rules](06_WorkingWithTerraForm/03_Lifecycle_Rules.md)
