@@ -24,14 +24,14 @@ resource "local_file" "pet" {
 
 ## 2. Why Terraform Needs a State File
 
-Suppose the configuration above declared an **AWS EC2 instance** instead of a local file. `terraform apply` boots the instance once; a week later, `terraform plan` runs again with no changes to any `.tf` file. AWS has no concept of "created by `aws_instance.web`" — that label exists only in the configuration, never on the instance itself. Something has to remember, on Terraform's behalf, which real object belongs to which resource block. That something is state.
+Run `terraform apply` once to create `local_file.pet`. A week later, run `terraform plan` again with no changes to any `.tf` file. How does Terraform know the file already exists, instead of trying to create it again? Nothing on disk says "created by `local_file.pet`" — that label exists only in the configuration, never on the file itself. Something has to remember, on Terraform's behalf, which real object belongs to which resource block. That something is state.
 
 Every `plan` and `apply` is really answering one question — **what needs to change to make reality match the configuration?** — and that requires three separate pieces of information, only two of which exist for free:
 
 | Source | Answers | File / extension | Written by |
 | --- | --- | --- | --- |
 | **Configuration** | What do you *want*? | `main.tf`, `variables.tf` — **`.tf`** files | You |
-| **Real-world infrastructure** | What actually exists *right now*? | The real object itself — e.g. the file at `root/pet.txt`, or an EC2 instance running in AWS | The provider (disk, cloud API, etc.) |
+| **Real-world infrastructure** | What actually exists *right now*? | The real object itself — e.g. the file at `root/pet.txt` | The provider (disk, cloud API, etc.) |
 | **State** | What did Terraform *itself* create, with which ID and attributes? | `terraform.tfstate` — the **`.tfstate`** file | Terraform |
 
 Configuration alone can't say whether a resource already exists — every `plan` would look like a fresh `create`. The real world alone isn't reliable either, since most resource types expose no built-in way to prove "this object was created by this specific resource block." Terraform closes that gap with its **own persistent record** — state — mapping *"this resource block in my configuration"* to *"this specific object Terraform created."*
@@ -64,52 +64,22 @@ flowchart TD
 
 The refresh step depends on Terraform being able to find the exact real-world object it created previously, not merely something that looks similar. It does this with a stored identifying value, captured once at creation time.
 
-For `local_file.pet`, that value is the **`filename`** — the resource's real-world address is its path on disk. Refresh asks the provider to check whether a file still exists at `root/pet.txt` and, if so, read its current content. For `aws_instance.web`, the identifying value is different: AWS assigns an opaque **instance ID** (e.g. `i-0abcd1234efgh5678`) the moment the instance launches, and Terraform stores that ID in state. Refresh then asks AWS to look up that exact instance ID — a `DescribeInstances` call filtered to it, not a scan of every instance in the account. Either way, the principle is the same: state stores whatever value the resource type uses as its real-world address, and refresh uses that stored value to look the object up again.
+For `local_file.pet`, that value is the **`filename`** — the resource's real-world address is its path on disk, `root/pet.txt`. Refresh asks the provider to check whether a file still exists at that path and, if so, read its current content. Note that this identifying value is the `filename` **argument**, not the computed `id` attribute: `id` is a hash of the file's content, useful for detecting whether the content changed, but it's `filename` that tells Terraform *where* to look.
 
-That lookup happens in one round trip, not one question per argument. A single Read call returns the object's **entire current attribute set** at once — for `aws_instance`, that means `ami`, `instance_type`, IP addresses, tags, everything, in one response. Terraform overwrites its whole in-memory copy of that resource's attributes from that one response; it never asks "does `instance_type` still say `t3.micro`?" as a separate question.
+That lookup happens in one round trip, not one question per argument. A single Read call checks the path and, if the file exists, reads back its **entire current state at once** — content, and every hash derived from it (`content_md5`, `content_sha1`, and so on). Terraform overwrites its whole in-memory copy of that resource's attributes from that one read; it never asks "does `content` still say `I love pets!`?" as a separate question from "does the file still exist?"
 
 Two outcomes are possible:
 
-- **Found** — the provider returns the object's current attributes. Terraform updates its in-memory state, and the resource is confirmed to still exist.
-- **Not found** (for example, AWS returns `InvalidInstanceID.NotFound`) — Terraform concludes the resource no longer exists and removes it from the refreshed state.
+- **Found** — the file still exists at `root/pet.txt`. Terraform reads its current content, updates its in-memory state, and the resource is confirmed to still exist.
+- **Not found** — the file has been deleted. Terraform concludes the resource no longer exists and removes it from the refreshed state.
 
 Refresh always runs first and unconditionally, on every `plan` and `apply`, regardless of whether anything actually changed. Terraform has no way to know whether there's a difference until after refreshing — so the diff is *discovered* by the compare step that follows, never the reason refresh ran in the first place.
 
-If someone terminates `aws_instance.web` by hand in the AWS Console, the next `plan` still follows the same sequence: refresh looks up the instance ID, gets back "not found," and updates state to show it's gone; compare then finds that `main.tf` still declares the instance should exist, while refreshed state says it doesn't. The plan reports a **create** — not "no changes" — using the exact mechanism that later catches a configuration edit like the `content` change in Section 9.
+If someone deletes `root/pet.txt` directly, outside Terraform, the next `plan` still follows the same sequence: refresh checks the path, finds nothing there, and updates state to show the resource is gone; compare then finds that `main.tf` still declares the file should exist, while refreshed state says it doesn't. The plan reports a **create** — not "no changes" — using the exact mechanism that Section 8 walks through for the case where the file's *content* changes instead of disappearing entirely.
 
 ---
 
-## 4. The Same Model on Real Infrastructure — EC2 and RDS PostgreSQL
-
-This lesson's hands-on demo uses `local_file` and `random_pet` because they run without a cloud account, matching the rest of the course. The mechanics above apply unchanged to real infrastructure — for instance, an EC2 instance paired with an RDS PostgreSQL database:
-
-```hcl
-resource "aws_instance" "web" {
-  ami           = "ami-0c101f26f147fa7fd"
-  instance_type = "t3.micro"
-}
-
-resource "aws_db_instance" "app_db" {
-  identifier        = "app-db"
-  engine            = "postgres"
-  instance_class    = "db.t3.micro"
-  allocated_storage = 20
-  username          = "app_user"
-  password          = var.db_password
-}
-```
-
-| Role | This lesson's demo | EC2 + RDS equivalent |
-| --- | --- | --- |
-| **`.tf` configuration** | `main.tf` declaring `local_file.pet` | `main.tf` declaring `aws_instance.web` and `aws_db_instance.app_db` |
-| **Real-world object** | The `root/pet.txt` file on disk | The EC2 instance and RDS database running in AWS |
-| **`.tfstate` record** | `local_file.pet`'s `id` (a content hash) | `aws_instance.web`'s `id` (e.g. `i-0abcd1234efgh5678`); `aws_db_instance.app_db`'s `id` |
-
-Force-new behavior isn't universal, either. `local_file` treats every argument as force-new — any change destroys and recreates the file, as established in `07_Resource_Attributes_and_References.md`. `aws_instance` is less strict: changing `instance_type` can often apply in place, while changing `ami` forces replacement, since the machine image is baked in at launch. State is what lets Terraform tell, argument by argument, which kind of change it's looking at.
-
----
-
-## 5. `terraform plan` Before Any State Exists
+## 4. `terraform plan` Before Any State Exists
 
 Running `terraform plan` for the first time starts by refreshing state in memory. Since this is the very first run, there is no state recorded at all — nothing to refresh. Terraform prints nothing related to a state refresh, because there's nothing to look up. From that absence, Terraform concludes that no resources are currently provisioned, and builds an execution plan of **create**:
 
@@ -128,7 +98,7 @@ No state recorded yet means no resources exist yet, as far as Terraform is conce
 
 ---
 
-## 6. `terraform apply` Creates the Resource — and the State File
+## 5. `terraform apply` Creates the Resource — and the State File
 
 Running `terraform apply` follows the same first step: refresh in-memory state, find none, proceed with the create plan. Once confirmed, Terraform creates the `local_file` resource and assigns it a unique ID:
 
@@ -158,7 +128,7 @@ flowchart LR
 
 ---
 
-## 7. Running `apply` Again — Refresh Confirms Nothing Changed
+## 6. Running `apply` Again — Refresh Confirms Nothing Changed
 
 Run `terraform apply` a second time, with no configuration changes:
 
@@ -188,7 +158,7 @@ flowchart TD
 
 ---
 
-## 8. Inside `terraform.tfstate`
+## 7. Inside `terraform.tfstate`
 
 The state file is a JSON data structure mapping real-world infrastructure to the resource definitions in the configuration. It holds the complete record of everything Terraform has created. For the single `local_file.pet` resource, it records:
 
@@ -228,7 +198,7 @@ Terraform treats this file as the single source of truth for `plan` and `apply` 
 
 ---
 
-## 9. Changing the Configuration — Detecting Drift
+## 8. Changing the Configuration — Detecting Drift
 
 Update `main.tf` so the `content` argument changes:
 
@@ -293,7 +263,7 @@ Configuration and state are in sync again. With no difference remaining between 
 
 ---
 
-## 10. State Is Always Created — It Is Non-Optional
+## 9. State Is Always Created — It Is Non-Optional
 
 This example uses a single resource, so the state file tracks a single entry. Real configurations often contain numerous resources across several providers. Regardless of infrastructure size:
 
@@ -307,7 +277,7 @@ State is more than bookkeeping for a single-resource demo. Later lessons build o
 
 ### Topic Summary: Terraform State
 
-**Terraform state** is a JSON file (`terraform.tfstate`) Terraform creates the first time you run `apply`, mapping each configured resource to its real-world counterpart, ID, and attributes. Terraform needs it because neither configuration nor the real world alone can say what Terraform previously created — state is the missing map between the two, keyed by whatever identifying value each resource type exposes (an opaque provider-assigned ID for most cloud resources, or an identifying argument like `local_file`'s `filename`). Every `plan` or `apply` runs the same two-step, unconditional sequence: **refresh** state by re-reading the real-world object through the provider, then **compare** configuration against that refreshed state — never against the real world directly — to decide what to create, leave alone, or replace. When arguments **drift** between configuration and state, Terraform destroys the old resource and creates a new one, updating state to match. State is not a convenience feature; Terraform creates and relies on it for every configuration, regardless of size.
+**Terraform state** is a JSON file (`terraform.tfstate`) Terraform creates the first time you run `apply`, mapping each configured resource to its real-world counterpart, ID, and attributes. Terraform needs it because neither configuration nor the real world alone can say what Terraform previously created — state is the missing map between the two, keyed by an identifying value recorded at creation (for `local_file`, that's the `filename` argument, not the computed `id`). Every `plan` or `apply` runs the same two-step, unconditional sequence: **refresh** state by re-reading the real-world object through the provider, then **compare** configuration against that refreshed state — never against the real world directly — to decide what to create, leave alone, or replace. When arguments **drift** between configuration and state, Terraform destroys the old resource and creates a new one, updating state to match. State is not a convenience feature; Terraform creates and relies on it for every configuration, regardless of size.
 
 ---
 
@@ -383,9 +353,9 @@ Answer each question on your own first, then read the explanation below it.
 
 ### 9 · How Terraform finds a resource it created long ago
 
-**A resource was created six months ago. How does the next `plan` determine whether it still exists — does Terraform search by name or tags?**
+**A `local_file` resource was created six months ago. How does the next `plan` determine whether it still exists — does Terraform search by content or hash it against every file on disk?**
 
-> Neither. State stores an identifying value for the resource — an opaque ID the provider assigned at creation for most cloud resources (e.g. an EC2 instance ID), or an identifying argument for others (`local_file`'s `filename`). Refresh looks the object up using that stored value; if the provider reports it missing, Terraform treats it as deleted, which is what turns into a **create** on the next plan.
+> Neither. State stores the resource's `filename` — its real-world address — from when it was created. Refresh checks that exact path; if the file is missing, Terraform treats the resource as deleted, which is what turns into a **create** on the next plan.
 
 ---
 
@@ -401,15 +371,15 @@ Answer each question on your own first, then read the explanation below it.
 
 **Does the create call return just the ID, or more than that?**
 
-> More than that. The provider's create call returns the resource's entire initial attribute set — the identifying value plus every other argument and computed value — and Terraform stores all of it in `terraform.tfstate`, not only the ID. The identifying value is what makes later lookups possible; the rest of the stored attributes are what later comparisons check against.
+> More than that. Creating the resource returns its entire initial attribute set — `filename`, `content`, and the computed `id` — and Terraform stores all of it in `terraform.tfstate`, not only the ID. `filename` is what makes later lookups possible; the rest of the stored attributes are what later comparisons check against.
 
-**Is the identifying value always a server-assigned ID?**
+**Is the identifying value refresh uses to find the resource always called `id`?**
 
-> No. Most cloud resources use an opaque ID the provider assigns at creation, independent of anything you configured — an EC2 instance ID, for example. Some resource types instead use an argument you chose as the real-world address: `local_file`'s `filename` is the file's path, and `aws_db_instance`'s `identifier` is both an input and the value AWS uses as the database's identity. Either way, state stores whatever value that resource type needs for the lookup to work.
+> No. For `local_file`, the value refresh actually uses to locate the object is `filename` — the file's path. `id` is a hash of the file's content: useful for detecting whether the content changed, but not what tells Terraform where to look. The two are easy to conflate, since `id` is the one that gets printed in apply output, but they serve different purposes.
 
 **Does refresh check each argument separately?**
 
-> No. It's a single Read call per resource, using the stored identifying value. That one response returns every current attribute of the real object at once, and Terraform overwrites its entire in-memory copy of that resource from it — not a separate round trip per argument.
+> No. It's a single Read per resource, using the stored `filename`. That one read returns the file's entire current state at once — content and every hash derived from it — and Terraform overwrites its whole in-memory copy of that resource from it, not a separate check per argument.
 
 **Does Terraform only refresh when it suspects something changed?**
 
@@ -417,8 +387,8 @@ Answer each question on your own first, then read the explanation below it.
 
 **What's the full sequence, end to end?**
 
-> 1. **Create** (once) — the provider's create call returns an identifying value plus the resource's full initial attributes; Terraform stores all of it in `terraform.tfstate`.
-> 2. **Refresh** (every later `plan`/`apply`, unconditionally) — Terraform uses the stored identifying value to make one Read call, which returns the object's current attributes in a single response, or reports it missing.
+> 1. **Create** (once) — creating the resource returns `filename`, `content`, and the computed `id`; Terraform stores all of it in `terraform.tfstate`.
+> 2. **Refresh** (every later `plan`/`apply`, unconditionally) — Terraform uses the stored `filename` to read the file, which returns its current state in one pass, or reports it missing.
 > 3. **Compare** (always runs after refresh) — Terraform checks the refreshed state's attribute values against what configuration declares, to decide: no changes, update in place, replace, or create.
 
 ---
