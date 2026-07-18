@@ -1,6 +1,6 @@
 # Terraform State
 
-This document explains **Terraform state** — the `terraform.tfstate` file Terraform creates behind the scenes, *why* Terraform needs it at all, and how it drives every `terraform plan` and `terraform apply` you run.
+This document explains **Terraform state** — the `terraform.tfstate` file Terraform creates behind the scenes, *why* Terraform needs it at all, and how it drives every `terraform plan` and `terraform apply` you run. The hands-on walkthrough uses the same `local_file`/`random_pet` resources as the rest of this course (Section 2a maps the same mechanics onto AWS EC2 + RDS PostgreSQL for intuition).
 
 ---
 
@@ -25,6 +25,8 @@ resource "local_file" "pet" {
 ## 2. Why Terraform Needs a State File
 
 Before walking through the demo, it helps to understand the problem state actually solves.
+
+Imagine, for a moment, that your configuration declared an **AWS EC2 instance** instead of a local file. You run `terraform apply` once, it boots the instance, and a week later you run `terraform plan` again with no changes to your `.tf` files. How does Terraform know that instance is already running, instead of launching a duplicate? AWS doesn't tag it "created by my `aws_instance.web` block" — that label only exists in your configuration, not on the instance itself. Terraform has to keep its own record somewhere. That record is **state**, and this lesson explains it with a small, runnable example (`local_file`) before mapping the same idea onto EC2-style infrastructure in Section 2a.
 
 Terraform's job, every time you run `plan` or `apply`, is to answer one question: **"What do I need to change to make reality match my configuration?"** To answer that, Terraform needs three pieces of information — and only has two of them for free:
 
@@ -59,6 +61,40 @@ flowchart TD
 ```
 
 > **Rule to remember:** Terraform never compares `main.tf` straight against `root/pet.txt`. Real-world data only reaches Terraform by being **refreshed into `terraform.tfstate`** first (step 1); your **`.tf`** configuration is then compared only against that refreshed **`.tfstate`** data (step 2). That's what "state sits between configuration and the real world" means — it's a strict two-step pipeline, not a three-way free-for-all.
+
+---
+
+## 2a. Same Model, Real Infrastructure — EC2 + RDS PostgreSQL
+
+> This section is **illustrative only** — it maps the mechanics above onto realistic cloud resources so the model isn't tied to a toy example. The rest of this lesson (and its hands-on lab) continues with `local_file`/`random_pet`, matching the actual course, because it's runnable without an AWS account.
+
+```hcl
+resource "aws_instance" "web" {
+  ami           = "ami-0c101f26f147fa7fd"
+  instance_type = "t3.micro"
+}
+
+resource "aws_db_instance" "app_db" {
+  identifier        = "app-db"
+  engine            = "postgres"
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
+  username          = "app_user"
+  password          = var.db_password
+}
+```
+
+The exact same three sources, and the exact same refresh-then-compare pipeline, apply — only the artifacts change:
+
+| Role | This lesson's demo | EC2 + RDS equivalent |
+| --- | --- | --- |
+| **`.tf` configuration** | `main.tf` declaring `local_file.pet` | `main.tf` declaring `aws_instance.web` and `aws_db_instance.app_db` |
+| **Real-world object** | The actual `root/pet.txt` file on disk | The actual EC2 instance and RDS database running in your AWS account |
+| **`.tfstate` record** | `terraform.tfstate` with `local_file.pet`'s `id` (a content hash) | `terraform.tfstate` with `aws_instance.web`'s `id` (e.g. `i-0abcd1234efgh5678`) and `aws_db_instance.app_db`'s `id` |
+
+**Drift, made concrete:** suppose someone terminates `aws_instance.web` by hand in the AWS Console — a change made completely outside Terraform. The next `terraform plan` still follows the same two steps: **(1) refresh** — Terraform asks AWS to Read that instance ID and gets back "not found," so the in-memory `.tfstate` copy is updated to show it's gone; **(2) compare** — `main.tf` still declares `aws_instance.web` should exist, but the refreshed state now shows it doesn't. The plan reports the instance must be **created** — not "no changes" — exactly the same logic that caught the `content` mismatch for `local_file.pet` in Section 7, just triggered by someone acting outside Terraform instead of a config edit.
+
+**Force-new isn't universal, either:** unlike `local_file` (where *every* argument is force-new, per `07_Resource_Attributes_and_References.md`), `aws_instance` supports genuine in-place updates for some arguments — e.g., changing `instance_type` can often be applied without replacement — while others, like `ami`, force replacement because the AMI is baked in at launch. The state file is what lets Terraform know, argument by argument, which kind of change it's looking at.
 
 ---
 
@@ -349,5 +385,13 @@ Answer each question on your own first, then read the explanation below it.
 **Is maintaining a state file optional for small configurations with only one or two resources?**
 
 > **No.** Terraform always creates and relies on a state file after `apply`, regardless of how many resources or providers are involved. It is a fundamental, non-optional part of how Terraform works.
+
+---
+
+### 10 · Drift from outside Terraform
+
+**If someone manually terminates an `aws_instance` in the AWS Console, what does the next `terraform plan` show — "no changes" or a plan to create it?**
+
+> A plan to **create** it. The refresh step asks AWS to Read that instance ID, finds it's gone, and updates the in-memory state to reflect that. Comparing the refreshed state (now "doesn't exist") against `main.tf` (still declares it should exist) produces a create — the same refresh-then-compare logic that catches any other drift.
 
 ---
