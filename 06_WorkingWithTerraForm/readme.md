@@ -60,6 +60,14 @@ Rejects any `apply` that would destroy the resource. Does not block `terraform d
 
 Takes a list of attribute names (or the `all` keyword) and stops Terraform from correcting drift on them — an external change to a listed attribute is left alone instead of reverted on the next `apply`.
 
+## 16. Data Sources
+
+A `data` block reads attributes from a resource Terraform doesn't manage — provisioned by another IaC tool, a script, manually, or a separate Terraform configuration. Syntax mirrors a `resource` block but uses `data` instead, and values are addressed as `data.<type>.<name>.<attribute>`.
+
+## 17. Managed Resource vs. Data Resource
+
+A managed resource (`resource` block) is created, updated, and destroyed by Terraform. A data resource (`data` block) is only ever read — Terraform never creates, updates, or destroys it.
+
 ---
 
 ## Knowledge Check Q&A
@@ -123,3 +131,12 @@ Takes a list of attribute names (or the `all` keyword) and stops Terraform from 
 
 **Q: What does `ignore_changes` accept?**
 **A:** A list of attribute names, or the `all` keyword to ignore changes to every attribute on the resource.
+
+**Q: Why would Terraform need to read a resource it doesn't manage?**
+**A:** Because infrastructure can be provisioned by other IaC tools, scripts, manual processes, or a separate Terraform configuration. A data source reads that resource's attributes without taking over management of it.
+
+**Q: How do you reference a value read by `data "local_file" "dog"`?**
+**A:** `data.local_file.dog.<attribute>` — the pattern is `data.<type>.<name>.<attribute>`.
+
+**Q: What's the difference between a managed resource and a data resource?**
+**A:** A managed resource is created, updated, and destroyed by Terraform (`resource` block). A data resource is only read by Terraform, never created or destroyed (`data` block).
