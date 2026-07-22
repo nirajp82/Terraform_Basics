@@ -220,6 +220,65 @@ flowchart LR
     style N2 fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
 
+### 4.4 Side-by-Side: How State Actually Stores Each
+
+The behavioral difference above traces directly back to how Terraform's state file addresses each instance. Both meta-arguments store multiple instances under one resource block, but the **key** used to look up each instance is fundamentally different.
+
+`terraform state list` makes the difference visible immediately:
+
+```text
+# count
+local_file.pet[0]
+local_file.pet[1]
+local_file.pet[2]
+```
+
+```text
+# for_each
+local_file.pet["/root/pets.txt"]
+local_file.pet["/root/dogs.txt"]
+local_file.pet["/root/cats.txt"]
+```
+
+Simplified, this is what each instance's record looks like inside `terraform.tfstate` — the field that matters is `index_key`:
+
+```json
+// count — index_key is a plain number tied to position in the list
+{
+  "type": "local_file",
+  "name": "pet",
+  "instances": [
+    { "index_key": 0, "attributes": { "filename": "/root/pets.txt" } },
+    { "index_key": 1, "attributes": { "filename": "/root/dogs.txt" } },
+    { "index_key": 2, "attributes": { "filename": "/root/cats.txt" } }
+  ]
+}
+```
+
+```json
+// for_each — index_key is the map/set element's own value, not a position
+{
+  "type": "local_file",
+  "name": "pet",
+  "instances": [
+    { "index_key": "/root/pets.txt", "attributes": { "filename": "/root/pets.txt" } },
+    { "index_key": "/root/dogs.txt", "attributes": { "filename": "/root/dogs.txt" } },
+    { "index_key": "/root/cats.txt", "attributes": { "filename": "/root/cats.txt" } }
+  ]
+}
+```
+
+When `var.filename` shrinks from three elements to two, `terraform plan` recomputes the new set of index keys and matches each one against what state already has on record for that same key:
+
+| | `count`'s `index_key` (position) | `for_each`'s `index_key` (value) |
+| --- | --- | --- |
+| Keys before removing `pets.txt` | `0`, `1`, `2` | `"pets.txt"`, `"dogs.txt"`, `"cats.txt"` |
+| Keys after removing `pets.txt` | `0`, `1` | `"dogs.txt"`, `"cats.txt"` |
+| What key `0` / `"dogs.txt"` now points to | `dogs.txt` — but state still has `pets.txt` recorded under key `0` → **mismatch, forces replace** | `dogs.txt` — state already has `dogs.txt` recorded under that exact key → **no change** |
+| What happened to `pets.txt`'s old key | Key `0` still exists, just pointing at different content now | Key `"/root/pets.txt"` no longer exists at all → **destroy, nothing else affected** |
+
+Because `count`'s `index_key` is purely positional, removing an early list element makes every later position's key resolve to *different* content than state has on file for that key — Terraform reads that as "this instance's configuration changed" and replaces it. Because `for_each`'s `index_key` *is* the content itself, removing an element only removes the one key tied to that content; every other key still resolves to the exact value state already has recorded, so Terraform reports no change for them.
+
 ---
 
 ## 5. `count` vs. `for_each`
