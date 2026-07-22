@@ -42,3 +42,5 @@ Each module folder below has its own `readme.md` chapter summary, and each numbe
 2. [Mutable vs. Immutable Infrastructure](06_WorkingWithTerraForm/02_Mutable_vs_Immutable_Infrastructure.md)
 3. [Lifecycle Rules](06_WorkingWithTerraForm/03_Lifecycle_Rules.md)
 4. [Data Sources](06_WorkingWithTerraForm/04_Data_Sources.md)
+5. [Meta-Arguments: `count` and `for_each`](06_WorkingWithTerraForm/05_MetaArguments.md)
+6. [Provider Version Constraints](06_WorkingWithTerraForm/06_Provider_Versions.md)
