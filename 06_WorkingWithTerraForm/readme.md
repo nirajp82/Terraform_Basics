@@ -76,6 +76,10 @@ Creates multiple instances of a resource from one block, addressed as a **list**
 
 Creates multiple instances keyed by value in a **map** (`pet["dogs.txt"]`) instead of by index — accepts only a `map` or `set`, never a plain `list` (fixable with `toset()`). Removing one element only destroys that element's own resource; every other instance is untouched.
 
+## 20. Provider Version Constraints
+
+By default `terraform init` installs a provider's latest version. A `required_providers` block inside a `terraform` block pins a version via `source` and `version`, supporting exact match, `!=`, comparison operators (`<`, `<=`, `>`, `>=`), comma-separated combinations, and the pessimistic `~>` operator (allows incrementing only the rightmost version component shown).
+
 ---
 
 ## Knowledge Check Q&A
@@ -157,3 +161,12 @@ Creates multiple instances keyed by value in a **map** (`pet["dogs.txt"]`) inste
 
 **Q: Why does `for_each` avoid the index-shift problem `count` has?**
 **A:** Instances are keyed by each element's own value in a map, not by numeric position, so removing one element only affects its own key — every other instance is untouched.
+
+**Q: Without version configuration, which provider version does `terraform init` install?**
+**A:** The latest version available on the Terraform Registry.
+
+**Q: Which two nested blocks pin a provider to a specific version?**
+**A:** A `terraform` block containing a `required_providers` block, with `source` and `version` set per provider.
+
+**Q: What does the pessimistic constraint operator (`~>`) do?**
+**A:** Allows the given version or any incremental release that only increments the rightmost version component shown — e.g. `~> 1.2` allows up to (but not including) `2.0.0`, while `~> 1.2.0` allows only `1.2.x` patch releases.
