@@ -191,7 +191,71 @@ resource "local_file" "pet" {
 
 `toset()` is another built-in function — it converts a list into a set at the point `for_each` needs it, without changing the variable's declared type.
 
-### 4.3 Why `for_each` Avoids the Index-Shift Problem
+### 4.3 Seeing the Difference with `terraform output`
+
+Add the same output block to both versions of the configuration:
+
+```hcl
+output "pets" {
+  value = local_file.pet
+}
+```
+
+**With `count`,** `terraform output` prints a **list** — one array element per instance, in index order:
+
+```text
+$ terraform output
+pets = [
+  {
+    "directory_permission" = "0777"
+    "file_permission" = "0777"
+    "filename" = "/root/pets.txt"
+    "id" = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  },
+  {
+    "directory_permission" = "0777"
+    "file_permission" = "0777"
+    "filename" = "/root/dogs.txt"
+    "id" = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  },
+  {
+    "directory_permission" = "0777"
+    "file_permission" = "0777"
+    "filename" = "/root/cats.txt"
+    "id" = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  },
+]
+```
+
+**With `for_each`,** the identical output block prints a **map** — one object per instance, keyed by its `for_each` value instead of by position:
+
+```text
+$ terraform output
+pets = {
+  "/root/cats.txt" = {
+    "directory_permission" = "0777"
+    "file_permission" = "0777"
+    "filename" = "/root/cats.txt"
+    "id" = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  }
+  "/root/dogs.txt" = {
+    "directory_permission" = "0777"
+    "file_permission" = "0777"
+    "filename" = "/root/dogs.txt"
+    "id" = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  }
+  "/root/pets.txt" = {
+    "directory_permission" = "0777"
+    "file_permission" = "0777"
+    "filename" = "/root/pets.txt"
+    "id" = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+  }
+}
+```
+
+Same resource, same three files — the only thing that changed is which meta-argument built them. `count` shapes the result into an array addressed by position (`[0]`, `[1]`, `[2]`); `for_each` shapes it into an object addressed by each element's own value (note the keys above even print in a different order than either list — `for_each`'s map has no inherent order at all). This is the same list-vs-map distinction `terraform state list` and the state file show; `terraform output` is just the most direct way to see it.
+
+### 4.4 Why `for_each` Avoids the Index-Shift Problem
 
 With `for_each`, resource instances form a **map**, keyed by each element's own value — not a numeric position. Removing `/root/pets.txt` from the same set:
 
@@ -220,7 +284,7 @@ flowchart LR
     style N2 fill:#14532d,stroke:#4ade80,color:#ffffff
 ```
 
-### 4.4 Side-by-Side: How State Actually Stores Each
+### 4.5 Side-by-Side: How State Actually Stores Each
 
 The behavioral difference above traces directly back to how Terraform's state file addresses each instance. Both meta-arguments store multiple instances under one resource block, but the **key** used to look up each instance is fundamentally different.
 
