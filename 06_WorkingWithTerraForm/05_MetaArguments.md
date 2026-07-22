@@ -209,8 +209,8 @@ Plan: 0 to add, 0 to change, 1 to destroy.
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart LR
-    M0["pet[\"pets.txt\"]"] --- M1["pet[\"dogs.txt\"]"] --- M2["pet[\"cats.txt\"]"]
-    N1["pet[\"dogs.txt\"]<br>(untouched)"] --- N2["pet[\"cats.txt\"]<br>(untouched)"]
+    M0["pet['pets.txt']"] --- M1["pet['dogs.txt']"] --- M2["pet['cats.txt']"]
+    N1["pet['dogs.txt']<br>(untouched)"] --- N2["pet['cats.txt']<br>(untouched)"]
     M0 -.->|"remove pets.txt<br>only its own key is destroyed"| N1
 
     style M0 fill:#713f12,stroke:#fbbf24,color:#ffffff
