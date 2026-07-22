@@ -93,6 +93,8 @@ data "local_file" "dog" {
 
 `content` isn't the only attribute the `local_file` data source exposes — its Registry documentation, under **Attributes Reference**, lists two: `content` and `content_base64` (the Base64-encoded version of the same content).
 
+<img width="1205" height="657" alt="image" src="https://github.com/user-attachments/assets/3b036a9f-6385-4ae0-af88-43791f71190d" />
+
 ---
 
 ## 5. Resources vs. Data Sources
