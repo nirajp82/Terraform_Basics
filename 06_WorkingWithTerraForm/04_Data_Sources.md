@@ -119,9 +119,64 @@ Anything outside the current Terraform configuration's control is a candidate fo
 
 ---
 
+## 7. Real-World Example — Reading an S3 Object to Provision an Okta User
+
+The `local_file` example proves the syntax, but the same pattern shows up constantly in production: a value that lives in a system Terraform doesn't manage feeds a resource that Terraform *does* manage.
+
+A common case in identity management: an HR system drops a JSON file for each new hire into an S3 bucket — `new-hires/jsmith.json`. Nothing about that bucket or object is managed by this Terraform configuration; the HR system owns it. Terraform's job is to read that file and use it to provision the person's account in **Okta**.
+
+```hcl
+data "aws_s3_object" "new_hire" {
+  bucket = "acme-hr-onboarding"
+  key    = "new-hires/jsmith.json"
+}
+
+locals {
+  new_hire = jsondecode(data.aws_s3_object.new_hire.body)
+}
+
+resource "okta_user" "new_hire" {
+  first_name = local.new_hire.first_name
+  last_name  = local.new_hire.last_name
+  login      = local.new_hire.email
+  email      = local.new_hire.email
+}
+```
+
+| Part | In this example | Rule |
+| --- | --- | --- |
+| Data source type | `aws_s3_object` | Provider is `aws`; reads an existing object, doesn't manage the bucket |
+| Arguments | `bucket`, `key` | The bucket name and object path — both required per the Registry docs |
+| Attribute used | `body` | The raw object content — here, a JSON string |
+| `jsondecode()` | Converts `body` from a JSON string into a Terraform object | Needed because `body` is just text; nothing decodes it automatically |
+| `okta_user` | A **managed resource** | Terraform creates and owns this Okta identity going forward |
+
+The new-hire JSON object itself never becomes something Terraform manages — only the `okta_user` resource built from its contents does. If the JSON file in S3 is deleted tomorrow, Terraform doesn't touch the Okta account; it simply has nothing left to read on the next `plan`.
+
+```mermaid
+%%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
+flowchart LR
+    S3["<div style='white-space:nowrap'>s3://acme-hr-onboarding/new-hires/jsmith.json</div><br>uploaded by the HR system<br>NOT managed by Terraform"]
+    DATA["data.aws_s3_object.new_hire<br>reads the object's body"]
+    DECODE["jsondecode(...)<br>local.new_hire"]
+    OKTA["okta_user.new_hire<br>managed by Terraform"]
+    S3 -->|"Terraform reads it"| DATA
+    DATA -->|"body referenced"| DECODE
+    DECODE -->|"first_name, last_name, email"| OKTA
+
+    style S3 fill:#374151,stroke:#9ca3af,color:#ffffff
+    style DATA fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style DECODE fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
+    style OKTA fill:#312e81,stroke:#a78bfa,color:#ffffff
+```
+
+This is the same relationship as the `local_file` example, just with a provider (`aws`) and consumer (`okta`) that a real onboarding pipeline would actually use: **read** from a system of record Terraform doesn't own, **create** the resource it does.
+
+---
+
 ### Topic Summary: Data Sources
 
-A **data source**, declared with a `data` block, lets Terraform read attributes from a resource it doesn't manage — infrastructure provisioned by another tool, a script, manually, or by a separate Terraform configuration. Its syntax mirrors a `resource` block, but uses `data` instead of `resource`, and its arguments are whatever that specific data source type expects (documented on the Terraform Registry). Values read by a data source are addressed as `data.<type>.<name>.<attribute>` and can be referenced anywhere a normal value is expected, such as inside another resource's arguments. Unlike a **managed resource**, a **data resource** is never created, updated, or destroyed by Terraform — only read.
+A **data source**, declared with a `data` block, lets Terraform read attributes from a resource it doesn't manage — infrastructure provisioned by another tool, a script, manually, or by a separate Terraform configuration. Its syntax mirrors a `resource` block, but uses `data` instead of `resource`, and its arguments are whatever that specific data source type expects (documented on the Terraform Registry). Values read by a data source are addressed as `data.<type>.<name>.<attribute>` and can be referenced anywhere a normal value is expected, such as inside another resource's arguments — including, as with `aws_s3_object`, values that need decoding (`jsondecode()`) before they're usable. Unlike a **managed resource**, a **data resource** is never created, updated, or destroyed by Terraform — only read.
 
 ---
 
@@ -192,5 +247,13 @@ Answer each question on your own first, then read the explanation below it.
 **If you remove a `data` block from your configuration and run `terraform apply`, does the underlying resource it was reading get destroyed?**
 
 > No. Terraform never created it in the first place, so there's nothing for Terraform to destroy — removing the `data` block just means Terraform stops reading that resource.
+
+---
+
+### 9 · S3-to-Okta example
+
+**In the `aws_s3_object` → `okta_user` example, which resource does Terraform manage, and which does it merely read?**
+
+> Terraform manages `okta_user.new_hire` — it created that Okta identity and will update or destroy it going forward. The S3 object (`data.aws_s3_object.new_hire`) is only read; the HR system that uploaded it owns the object, and Terraform never creates, updates, or deletes it.
 
 ---
