@@ -288,7 +288,7 @@ flowchart LR
 
 The behavioral difference above traces directly back to how Terraform's state file addresses each instance. Both meta-arguments store multiple instances under one resource block, but the **key** used to look up each instance is fundamentally different.
 
-`terraform state list` makes the difference visible immediately:
+`terraform state list` prints the address of every resource instance Terraform currently tracks in state — one line per instance, in the exact `<type>.<name>[<key>]` form used to target that instance with commands like `terraform state show` or `terraform taint`. It reads directly from the state file, not from configuration, so it makes the difference visible immediately:
 
 ```text
 # count
