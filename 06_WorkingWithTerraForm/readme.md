@@ -68,6 +68,14 @@ A `data` block reads attributes from a resource Terraform doesn't manage — pro
 
 A managed resource (`resource` block) is created, updated, and destroyed by Terraform. A data resource (`data` block) is only ever read — Terraform never creates, updates, or destroys it.
 
+## 18. `count` Meta-Argument
+
+Creates multiple instances of a resource from one block, addressed as a **list** (`pet[0]`, `pet[1]`...). Pairing it with a list variable and `count.index` gives each instance a unique value; `length()` keeps `count` in sync with the list's size automatically. Drawback: removing an element shifts every later index, forcing unrelated instances to be replaced or destroyed.
+
+## 19. `for_each` Meta-Argument
+
+Creates multiple instances keyed by value in a **map** (`pet["dogs.txt"]`) instead of by index — accepts only a `map` or `set`, never a plain `list` (fixable with `toset()`). Removing one element only destroys that element's own resource; every other instance is untouched.
+
 ---
 
 ## Knowledge Check Q&A
@@ -140,3 +148,12 @@ A managed resource (`resource` block) is created, updated, and destroyed by Terr
 
 **Q: What's the difference between a managed resource and a data resource?**
 **A:** A managed resource is created, updated, and destroyed by Terraform (`resource` block). A data resource is only read by Terraform, never created or destroyed (`data` block).
+
+**Q: What does `count` produce, and what's its main drawback?**
+**A:** A list of resource instances indexed by position (`pet[0]`, `pet[1]`...). Removing an element from the underlying list shifts every later index, which can force unrelated instances to be replaced or destroyed.
+
+**Q: What value types does `for_each` accept?**
+**A:** A `map` or a `set` — never a plain `list` directly, though `toset()` converts one.
+
+**Q: Why does `for_each` avoid the index-shift problem `count` has?**
+**A:** Instances are keyed by each element's own value in a map, not by numeric position, so removing one element only affects its own key — every other instance is untouched.
