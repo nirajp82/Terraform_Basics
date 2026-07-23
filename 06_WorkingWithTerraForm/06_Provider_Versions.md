@@ -92,7 +92,7 @@ Installs the highest version below `2.0.0` — again `1.4.0`.
 ```hcl
 version = "> 1.2.0"
 ```
-Installs the highest version above `1.2.0` with no upper bound — `2.0.0`, since nothing higher is excluded.
+Installs the highest version satisfying >= 1.2.0 and < 2.0.0 that is 1.3.0, since 2.0.0 is excluded by the upper bound and 1.4.0 is excluded by != 1.4.0
 
 ```hcl
 version = ">= 1.2.0, < 2.0.0, != 1.4.0"
