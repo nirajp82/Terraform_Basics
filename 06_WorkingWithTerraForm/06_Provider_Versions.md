@@ -120,7 +120,6 @@ The pessimistic operator with two version components shown (`1.2`) fixes the **f
 version = "~> 1.2.0"
 ```
 With three components shown, `~>` fixes the first **two** (`1.2`) and only allows the third to increment — equivalent to `>= 1.2.0, < 1.3.0`. Among `1.2.0`, `1.2.1`, `1.2.2`, the highest available is `1.2.2`.
-```
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
