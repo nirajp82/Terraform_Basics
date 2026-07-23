@@ -122,6 +122,7 @@ version = "~> 1.2.0"
 With three components shown, `~>` fixes the first **two** (`1.2`) and only allows the third to increment — equivalent to `>= 1.2.0, < 1.3.0`. Among `1.2.0`, `1.2.1`, `1.2.2`, the highest available is `1.2.2`.
 
 ```mermaid
+
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
 flowchart LR
     CONSTRAINT["version constraint in required_providers"]
@@ -136,6 +137,7 @@ flowchart LR
     style REGISTRY fill:#1e3a5f,stroke:#60a5fa,color:#ffffff
     style RESOLVE fill:#374151,stroke:#9ca3af,color:#ffffff
     style INSTALL fill:#14532d,stroke:#4ade80,color:#ffffff
+
 ```
 
 ---
