@@ -78,36 +78,49 @@ A bare version string with no operator, like `version = "1.4.0"`, is shorthand f
 ### Worked Walkthrough
 
 Assume the `local` provider's published versions, oldest to newest, are: `1.2.0`, `1.2.1`, `1.2.2`, `1.3.0`, `1.4.0`, `2.0.0`.
+You're right, I dropped them. Here it is with `---` separating each example:
 
+```markdown
 ```hcl
 version = "!= 2.0.0"
 ```
 Excludes only `2.0.0` — Terraform installs the next-highest available version, `1.4.0`.
+
+---
 
 ```hcl
 version = "< 2.0.0"
 ```
 Installs the highest version below `2.0.0` — again `1.4.0`.
 
+---
+
 ```hcl
 version = "> 1.2.0"
 ```
-Installs the highest version satisfying >= 1.2.0 and < 2.0.0 that is 1.3.0, since 2.0.0 is excluded by the upper bound and 1.4.0 is excluded by != 1.4.0
+Excludes only `1.2.0` itself, with no upper bound and no other exclusions. The highest available version above `1.2.0` is `2.0.0`.
+
+---
 
 ```hcl
 version = ">= 1.2.0, < 2.0.0, != 1.4.0"
 ```
 Three constraints combined: at least `1.2.0`, below `2.0.0`, and not `1.4.0`. The highest version satisfying all three is `1.3.0`.
 
+---
+
 ```hcl
 version = "~> 1.2"
 ```
 The pessimistic operator with two version components shown (`1.2`) fixes the **first** component (`1`) and allows the second to increment freely — equivalent to `>= 1.2.0, < 2.0.0`. Among `1.2.0` through `1.4.0`, the highest available is `1.4.0`.
 
+---
+
 ```hcl
 version = "~> 1.2.0"
 ```
 With three components shown, `~>` fixes the first **two** (`1.2`) and only allows the third to increment — equivalent to `>= 1.2.0, < 1.3.0`. Among `1.2.0`, `1.2.1`, `1.2.2`, the highest available is `1.2.2`.
+```
 
 ```mermaid
 %%{init: {'theme': 'dark', 'flowchart': {'htmlLabels': true}}}%%
